@@ -1,0 +1,5 @@
+[workspace]
+
+members=["crabby-chat", "crabby-infra",]
+
+resolver="2"
