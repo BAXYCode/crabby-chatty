@@ -5,8 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+crabby-core = { path = "../crabby-core" }
+uuid = { version = "1.8.0", features = ["v7", "serde", "macro-diagnostics"] }
 axum = { version = "0.7.4", features = ["ws"] }
 futures = "0.3.30"
+hashbrown = "0.14.3"
 log = "0.4.21"
+machine-id = "0.4.0"
+opentelemetry_sdk = "0.22.1"
 serde = "1.0.197"
 tokio = { version = "1.37.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-opentelemetry = "0.23.0"
+async-trait = "0.1.80"
