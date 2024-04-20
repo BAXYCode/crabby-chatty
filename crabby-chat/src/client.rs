@@ -43,21 +43,22 @@ async fn main() {
 async fn incoming_messages(mut income: SplitStream<WebSocket>) {
     info!("inside incoming");
     while let Some(serialized) = income.next().await {
-        let Ok(message) = serialized else { continue };
-        let message = match message {
-            Message::Text(str) => Vec::from(str),
-            Message::Binary(bin) => bin,
-        };
-        let message: ChatMessage =
-            serde_json::from_slice(&message).expect("Could not parse websocket message");
-        println!("from engine: {:?}", message)
+        if let Ok(message) = serialized {
+            let message = match message {
+                Message::Text(str) => Vec::from(str),
+                Message::Binary(bin) => bin,
+            };
+            let message: ChatMessage =
+                serde_json::from_slice(&message).expect("Could not parse websocket message");
+            println!("from engine: {:?}", message)
+        }
     }
+    println!("leaving incoming");
 }
 
 async fn outgoing_message(mut sink: SplitSink<WebSocket, Message>, mut reader: BufReader<Stdin>) {
     let mut buf = String::new();
     while let Ok(read) = reader.read_line(&mut buf).await {
-        println!("{:?}", buf);
         if read == 0 {
             return;
         }

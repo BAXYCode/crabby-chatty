@@ -22,6 +22,7 @@ pub(crate) enum MessageContent {
 
 impl Handler<Message, ()> for ChatEngine {
     async fn handle(&mut self, event: Message) -> Result<(), crate::error::ChatError> {
+        println!("inside message handle");
         let origin = event.from;
         info!("message received inside handler: {:?}", event);
         for (k, v) in self.map.iter() {

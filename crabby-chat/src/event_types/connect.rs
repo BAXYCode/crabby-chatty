@@ -24,7 +24,10 @@ impl Connect {
 
 impl Handler<Connect, ()> for ChatEngine {
     async fn handle(&mut self, event: Connect) -> Result<(), ChatError> {
+        info!("inside Connection handler");
+        println!("inside Connection");
         let res = self.map.insert(event.id, event.sink);
+
         if let Some(val) = res {
             warn!("channel replaced for user_id: {:?}", event.id);
             return Err(ChatError::UserSinkReplaced);

@@ -55,10 +55,11 @@ async fn test() {
         .with(tracing_subscriber::fmt::layer())
         .init();
     let (sx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerEvent>();
-    let engine = ChatEngine::build(rx);
+    let mut engine = ChatEngine::build(rx);
     let state = SharedState {
         channel: ChannelState { inner: sx },
     };
+    let _run = tokio::task::spawn(async move { engine.run().await });
     let listener = TcpListener::bind("0.0.0.0:6969").await.unwrap();
     let router = axum::Router::new()
         .route("/ws", get(websocket))
@@ -168,6 +169,7 @@ impl Engine for ChatEngine {
                 }
             }
         }
+        warn!("exiting run");
     }
 }
 #[derive(Debug, Clone)]
