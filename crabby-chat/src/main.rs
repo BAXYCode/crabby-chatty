@@ -71,7 +71,6 @@ async fn test() {
     .await
     .unwrap();
 }
-#[instrument]
 async fn websocket(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -81,19 +80,19 @@ async fn websocket(
     ws.on_upgrade(move |socket| websocket_handler(socket, addr, state))
 }
 // TODO: add token extractor for extracting user UUID
-#[instrument]
 async fn websocket_handler(ws: WebSocket, addr: SocketAddr, mut state: ChannelState) {
     let (mut sink, mut stream) = ws.split();
 
-    let mut recv = register(&mut state, None).unwrap();
+    let mut recv = register(&mut state, None).await.unwrap();
     let (recv, id) = recv;
+    info!("User id: {:?}", id);
     // Task that listens on the websocket for incoming messages and uses "ChannelState" to send those messages to the Engine
     let _recv = tokio::spawn(async move { incoming_handler(stream, id, state).await });
     // Task that waits for outgoing messages coming from the Engine to be sent to client
     let _send = tokio::spawn(async move { outgoing_handler(sink, recv).await });
 
-    select! {_ = _send => return ,
-    _ = _recv => return }
+    select! {_ = _send =>{warn!("send task returned") ;},
+    _ = _recv => {warn!("recv task returned");} }
 }
 
 async fn outgoing_handler(
@@ -101,16 +100,21 @@ async fn outgoing_handler(
     mut recv: UnboundedReceiver<ChatMessage>,
 ) {
     while let Some(message) = recv.recv().await {
+        info!("Message leaving engine");
         let serialized = serde_json::to_vec(&message).unwrap();
         let res = sink.send(Message::from(serialized)).await;
         if let Some(err) = res.err() {
+            error!("{:?}", err);
             return;
         }
     }
+    warn!("Exiting outgoing handler");
 }
 async fn incoming_handler(mut income: SplitStream<WebSocket>, id: Uuid, state: ChannelState) {
     let mut channel = state.inner;
+    info!("inside incoming handler");
     while let Some(serialized) = income.next().await {
+        info!("received: {:?}", serialized);
         if let Ok(message) = serialized {
             let message: ChatMessage = serde_json::from_slice(&message.into_data())
                 .expect("Could not parse websocket message");
@@ -126,6 +130,7 @@ async fn incoming_handler(mut income: SplitStream<WebSocket>, id: Uuid, state: C
             }
         }
     }
+    warn!("leaving handler")
 }
 struct ChatEngine {
     map: hashbrown::HashMap<Uuid, UnboundedSender<ChatMessage>>,
@@ -149,6 +154,7 @@ impl ChatEngine {
 impl Engine for ChatEngine {
     async fn run(&mut self) {
         while let Some(event) = self.rx.recv().await {
+            warn!("event received: {:?}", event);
             match event {
                 ServerEvent::Connected(connected) => {
                     let handled = self.handle(connected).await;
@@ -190,7 +196,7 @@ fn id() -> Uuid {
 }
 // Function to inform the engine of a new user being connected
 #[instrument]
-fn register(
+async fn register(
     state: &mut ChannelState,
     id: Option<Uuid>,
 ) -> Result<(UnboundedReceiver<ChatMessage>, Uuid), ChatError> {
@@ -198,9 +204,13 @@ fn register(
     let (mut sender, recv) = unbounded_channel::<ChatMessage>();
     let id = if let Some(id) = id { id } else { crate::id() };
 
+    info!("registering user with id: {:?}", id);
     let connected = event_types::connect::Connect::new(sender, id);
     let connect = ServerEvent::Connected(connected);
     // Send notification to Engine that new user is connected, this is his Id and channel to send outgoing messages
-    state.inner.send(connect)?;
+    let res = state.inner.send(connect);
+    if let Some(err) = res.err() {
+        error!("error sending channel: {:?}", err);
+    }
     Ok((recv, id))
 }

@@ -5,6 +5,7 @@ use futures::{
     SinkExt,
 };
 
+use log::{info, log};
 use reqwest::Client;
 use reqwest_websocket::{self, Message, RequestBuilderExt, WebSocket};
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,7 @@ async fn main() {
 }
 
 async fn incoming_messages(mut income: SplitStream<WebSocket>) {
+    info!("inside incoming");
     while let Some(serialized) = income.next().await {
         let Ok(message) = serialized else { continue };
         let message = match message {
@@ -59,13 +61,14 @@ async fn outgoing_message(mut sink: SplitSink<WebSocket, Message>, mut reader: B
         if read == 0 {
             return;
         }
-        let blah = sink.send(Message::Binary(
-            serde_json::to_vec(&ChatMessage::from_string(buf)).unwrap(),
-        ));
+        let blah = sink
+            .send(Message::Binary(
+                serde_json::to_vec(&ChatMessage::from_string(buf)).unwrap(),
+            ))
+            .await;
         buf = String::new();
     }
 }
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     content: MessageContent,

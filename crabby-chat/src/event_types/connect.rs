@@ -5,8 +5,9 @@ use crate::handle::Handler;
 use crate::ChatEngine;
 use crate::ChatMessage;
 use futures::io::sink;
-use log::warn;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::info;
+use tracing::warn;
 use uuid::Uuid;
 
 use super::disconnect::Disconnect;
@@ -28,6 +29,7 @@ impl Handler<Connect, ()> for ChatEngine {
             warn!("channel replaced for user_id: {:?}", event.id);
             return Err(ChatError::UserSinkReplaced);
         }
+        info!("Inserted {:?} into hashmap", event.id);
         Ok(())
     }
 }
