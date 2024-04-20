@@ -10,3 +10,9 @@ pub(crate) enum ServerEvent {
     Disconnected(Disconnect),
     ChatMessage(Message),
 }
+
+impl From<Message> for ServerEvent {
+    fn from(value: Message) -> Self {
+        ServerEvent::ChatMessage(value)
+    }
+}

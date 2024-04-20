@@ -1,10 +1,11 @@
 #![allow(dead_code, unused_variables, unused_imports, unused_mut)]
 mod api;
+mod client;
 mod error;
 mod event;
 mod event_types;
 mod handle;
-mod messages;
+pub mod messages;
 use api::rest;
 use axum::{
     extract::{
@@ -27,11 +28,15 @@ use messages::Message as ChatMessage;
 use std::net::SocketAddr;
 use tokio::{
     net::TcpListener,
+    select,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
 };
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
-use tracing::{instrument, warn};
-use uuid::{NoContext, Timestamp, Uuid};
+use tracing::{error, info, instrument, warn};
+
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::{serde, NoContext, Timestamp, Uuid};
+
 #[tokio::main]
 async fn main() {
     test().await;
@@ -39,6 +44,16 @@ async fn main() {
 
 #[instrument]
 async fn test() {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::filter::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                // axum logs rejections from built-in extractors with the `axum::rejection`
+                // target, at `TRACE` level. `axum::rejection=trace` enables showing those events
+                "example_tracing_aka_logging=debug,tower_http=debug,axum::rejection=trace".into()
+            }),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
     let (sx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerEvent>();
     let engine = ChatEngine::build(rx);
     let state = SharedState {
@@ -56,11 +71,13 @@ async fn test() {
     .await
     .unwrap();
 }
+#[instrument]
 async fn websocket(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<ChannelState>,
 ) -> impl IntoResponse {
+    info!("received connection from {addr}");
     ws.on_upgrade(move |socket| websocket_handler(socket, addr, state))
 }
 // TODO: add token extractor for extracting user UUID
@@ -68,13 +85,46 @@ async fn websocket(
 async fn websocket_handler(ws: WebSocket, addr: SocketAddr, mut state: ChannelState) {
     let (mut sink, mut stream) = ws.split();
 
-    let mut recv = register(&mut state, None);
-    let _recv = tokio::spawn(async move { incoming_handler(stream).await });
+    let mut recv = register(&mut state, None).unwrap();
+    let (recv, id) = recv;
+    // Task that listens on the websocket for incoming messages and uses "ChannelState" to send those messages to the Engine
+    let _recv = tokio::spawn(async move { incoming_handler(stream, id, state).await });
+    // Task that waits for outgoing messages coming from the Engine to be sent to client
+    let _send = tokio::spawn(async move { outgoing_handler(sink, recv).await });
+
+    select! {_ = _send => return ,
+    _ = _recv => return }
 }
-async fn incoming_handler(mut income: SplitStream<WebSocket>) {
-    loop {
-        let next = income.next().await;
-        println!("{:?}", next)
+
+async fn outgoing_handler(
+    mut sink: SplitSink<WebSocket, Message>,
+    mut recv: UnboundedReceiver<ChatMessage>,
+) {
+    while let Some(message) = recv.recv().await {
+        let serialized = serde_json::to_vec(&message).unwrap();
+        let res = sink.send(Message::from(serialized)).await;
+        if let Some(err) = res.err() {
+            return;
+        }
+    }
+}
+async fn incoming_handler(mut income: SplitStream<WebSocket>, id: Uuid, state: ChannelState) {
+    let mut channel = state.inner;
+    while let Some(serialized) = income.next().await {
+        if let Ok(message) = serialized {
+            let message: ChatMessage = serde_json::from_slice(&message.into_data())
+                .expect("Could not parse websocket message");
+            info!("{:?}", message);
+            // TODO: better error handling por fav
+            let res = channel.send(message.into());
+            if let Some(err) = res.err() {
+                error!(
+                    "There was an error sending a message to user {:?}, exiting handler.",
+                    id
+                );
+                return;
+            }
+        }
     }
 }
 struct ChatEngine {
@@ -98,19 +148,17 @@ impl ChatEngine {
 }
 impl Engine for ChatEngine {
     async fn run(&mut self) {
-        loop {
-            if let Some(event) = self.rx.recv().await {
-                match event {
-                    ServerEvent::Connected(connected) => {
-                        let handled = self.handle(connected).await;
-                        Self::if_error(handled);
-                    }
-                    ServerEvent::Disconnected(disconnect) => {
-                        Self::if_error(self.handle(disconnect).await);
-                    }
-                    ServerEvent::ChatMessage(message) => {
-                        Self::if_error(self.handle(message).await);
-                    }
+        while let Some(event) = self.rx.recv().await {
+            match event {
+                ServerEvent::Connected(connected) => {
+                    let handled = self.handle(connected).await;
+                    Self::if_error(handled);
+                }
+                ServerEvent::Disconnected(disconnect) => {
+                    Self::if_error(self.handle(disconnect).await);
+                }
+                ServerEvent::ChatMessage(message) => {
+                    Self::if_error(self.handle(message).await);
                 }
             }
         }
