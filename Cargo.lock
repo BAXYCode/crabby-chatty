@@ -254,6 +254,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "crabby-auth"
+version = "0.1.0"
+
+[[package]]
 name = "crabby-chat"
 version = "0.1.0"
 dependencies = [

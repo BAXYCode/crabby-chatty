@@ -52,7 +52,7 @@ async fn test() {
                 "example_tracing_aka_logging=debug,tower_http=debug,axum::rejection=trace".into()
             }),
         )
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().pretty())
         .init();
     let (sx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerEvent>();
     let mut engine = ChatEngine::build(rx);
