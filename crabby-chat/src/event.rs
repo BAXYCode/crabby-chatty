@@ -1,7 +1,4 @@
-use crate::{
-    event_types::{connect::Connect, disconnect::Disconnect},
-    messages::Message,
-};
+use crate::event_types::{connect::Connect, disconnect::Disconnect, messages::Message};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 #[derive(Debug)]

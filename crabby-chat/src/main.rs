@@ -5,7 +5,6 @@ mod error;
 mod event;
 mod event_types;
 mod handle;
-pub mod messages;
 use api::rest;
 use axum::{
     extract::{
@@ -20,11 +19,10 @@ use crabby_core::{engine, shutdown};
 use crabby_core::{engine::Engine, shutdown::shutdown_signal};
 use error::ChatError;
 use event::ServerEvent;
-use event_types::connect;
+use event_types::{connect, messages::Message as ChatMessage};
 use futures::{stream::SplitSink, stream::SplitStream, stream::Stream, SinkExt, StreamExt};
 use handle::Handler;
 use hashbrown::HashMap;
-use messages::Message as ChatMessage;
 use std::net::SocketAddr;
 use tokio::{
     net::TcpListener,
