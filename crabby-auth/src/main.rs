@@ -1,5 +1,4 @@
 mod authenticate;
-mod test_client;
 use authenticate::auth::authenticate_server::AuthenticateServer;
 use tonic::transport::Server;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -15,6 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
+
     let auth = authenticate::Authenticator::new();
     Server::builder()
         .add_service(AuthenticateServer::new(auth))

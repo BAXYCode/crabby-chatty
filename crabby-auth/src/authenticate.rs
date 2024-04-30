@@ -10,10 +10,10 @@ use rusty_paseto::generic::{
     CustomClaim, IssuerClaim, Key, Local, PasetoError, PasetoSymmetricKey, V4,
 };
 use rusty_paseto::prelude::PasetoBuilder;
+use sqlx::{PgPool, Postgres};
 use tonic::async_trait;
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
 use uuid::{timestamp, Timestamp, Uuid};
-
 pub mod auth {
     tonic::include_proto!("authentication");
 }
@@ -29,6 +29,7 @@ struct User {
     salt: Uuid,
 }
 pub(crate) struct Authenticator {
+    cockroach: PgPool,
     db: dashmap::DashMap<String, User>,
     emails: DashSet<String>,
     key: PasetoSymmetricKey<V4, Local>,
