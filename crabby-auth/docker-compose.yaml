@@ -3,27 +3,26 @@ services:
     image: cockroachdb/cockroach:v23.2.4
     volumes:
       - "roach1:/cockroach/cockroach-data"
-    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure  --http-addr=roach1:8080 --cache=.25 --listen-addr=roach1:36257 --sql-addr=roach1:26257 --accept-sql-without-tls --advertise-addr=roach1:36257 --join=roach1:36257,roach2:36257,roach3:36257
+    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure  --http-addr=roach1:8081 --cache=.25 --listen-addr=roach1:36257 --sql-addr=roach1:26257 --accept-sql-without-tls --advertise-addr=roach1:36257 --join=roach1:36257,roach2:36257,roach3:36257
     container_name: roach1
     labels:
-      - "traefik=true"
+      - "traefik.enable=true"
       - "traefik.docker.network=roachnet"
-      - "traefik.http.routers.roachdb_admin.entrypoints=roachdb-admin"
-      - "traefik.http.routers.roachdb_admin.service=roachdb-admin"
-
-      - "traefik.http.routers.roachdb.rule=Host(`roachdb.localhost`)"
-      - "traefik.http.routers.roachdb.entrypoints=roachdb-inter"
-      - "traefik.http.routers.roachdb.service=roachdb-inter"
-
-      - "traefik.http.routers.roachdb-sql.entrypoints=roachdb-sql"
-      - "traefik.http.routers.roachdb-sql.service=roachdb-client-comms"
-
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.port=8080"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.port=36257"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.port=26257"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`admin.roachdb.localhost`)"
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
+      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      # intercommunication channel (optional)
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
+      - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
+      - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
     networks:
       - roachnet
     depends_on:
@@ -33,18 +32,26 @@ services:
     image: cockroachdb/cockroach:v23.2.4
     volumes:
       - "roach2:/cockroach/cockroach-data"
-    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=roach2:8080 --join=roach1:36257,roach2:36257,roach3:36257 --cache=.25 --listen-addr=roach2:36257 --sql-addr=roach2:26257 --accept-sql-without-tls --advertise-addr=roach2:36257
+    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=roach2:8081 --join=roach1:36257,roach2:36257,roach3:36257 --cache=.25 --listen-addr=roach2:36257 --sql-addr=roach2:26257 --accept-sql-without-tls --advertise-addr=roach2:36257
     container_name: roach2
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=roachnet"
-      - "traefik.http.routers.roachdb-sql.rule=Host(`roach.db.sql`)"
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.port=8080"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.port=36257"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.port=26257"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`admin.roachdb.localhost`)"
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
+      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      # intercommunication channel (optional)
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
+      - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
+      - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
     networks:
       - roachnet
     depends_on:
@@ -55,30 +62,31 @@ services:
     volumes:
       - "roach3:/cockroach/cockroach-data"
 
-    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=roach3:8080  --cache=.25 --listen-addr=roach3:36257 --sql-addr=roach3:26257 --accept-sql-without-tls --advertise-addr=roach3:36257 --join=roach1:36257,roach2:36257,roach3:36257
+    command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=roach3:8081  --cache=.25 --listen-addr=roach3:36257 --sql-addr=roach3:26257 --accept-sql-without-tls --advertise-addr=roach3:36257 --join=roach1:36257,roach2:36257,roach3:36257
     container_name: roach3
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=roachnet"
-      - "traefik.http.routers.roachdb_admin.rule=Host(`roach.db.admin.localhost`)"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-client-comms.loadbalancer.server.port=26257"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-inter.loadbalancer.server.port=36257"
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.scheme=http"
-      - "traefik.http.services.roachdb-admin.loadbalancer.server.port=8080"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`admin.roachdb.localhost`)"
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
+      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      # intercommunication channel (optional)
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
+      - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
+      - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
     depends_on:
       - traefik
     networks:
       - roachnet
 
-  whoami:
-    image: "traefik/whoami"
-    container_name: "simple-service"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
   traefik:
     image: traefik:v3.0
     container_name: traefik
@@ -87,18 +95,18 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.roachdb-admin=true"
-      - "--entrypoints.roachdb-sql=true"
-      - "--entrypoints.roachdb-inter=true"
+      - "--entrypoints.roach_admin=true"
+      - "--entrypoints.roach_sql=true"
+      - "--entrypoints.roach_inter=true"
       - "--entrypoints.web=true"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.roachdb-admin.address=:8081"
-      - "--entrypoints.roachdb-inter.address=:36257"
-      - "--entrypoints.roachdb-sql.address=:26257"
+      - "--entrypoints.roach_admin.address=:8081"
+      - "--entrypoints.roach_inter.address=:36257"
+      - "--entrypoints.roachdb_sql.address=:26257"
     ports:
       - "69:80"
       - "8080:8080"
-      - "8081:8080"
+      - "8081:8081"
       - "36527:36527"
       - "26257:26257"
     labels:
