@@ -1,9 +1,12 @@
 mod authenticate;
 use authenticate::auth::authenticate_server::AuthenticateServer;
+use sqlx::PgPool;
 use tonic::transport::Server;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let url = "postgresql://root@roach2:26257/defaultdb?sslmode=disable";
+    let pg = PgPool::connect(url).await?;
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::filter::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -15,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
 
-    let auth = authenticate::Authenticator::new();
+    let auth = authenticate::Authenticator::new(pg);
     Server::builder()
         .add_service(AuthenticateServer::new(auth))
         .serve("0.0.0.0:6869".parse()?)

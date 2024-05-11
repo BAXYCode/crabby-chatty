@@ -14,19 +14,19 @@ services:
       - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
       - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
       # intercommunication channel (optional)
-      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
       - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
       - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
     networks:
       - roachnet
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
 
   roach2:
     image: cockroachdb/cockroach:v23.2.4
@@ -34,6 +34,7 @@ services:
       - "roach2:/cockroach/cockroach-data"
     command: start --cluster-name=crabby-roach --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=roach2:8081 --join=roach1:36257,roach2:36257,roach3:36257 --cache=.25 --listen-addr=roach2:36257 --sql-addr=roach2:26257 --accept-sql-without-tls --advertise-addr=roach2:36257
     container_name: roach2
+    hostname: roach
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=roachnet"
@@ -43,19 +44,19 @@ services:
       - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
       - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
       # intercommunication channel (optional)
-      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
       - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
       - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
     networks:
       - roachnet
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
 
   roach3:
     image: cockroachdb/cockroach:v23.2.4
@@ -73,15 +74,33 @@ services:
       - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
       - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
       # intercommunication channel (optional)
-      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`inter.roachdb`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_inter.service=roach_inter_svc"
       - "traefik.tcp.services.roach_inter_svc.loadbalancer.server.port=36257"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`sql.roachdb`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
       - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
+    # depends_on:
+    #   - traefik
+    networks:
+      - roachnet
+  db-init:
+    image: baxydocker/db-init:latest
+    container_name: init
+    hostname: roach-init
+    command: "/tool"
+    environment:
+      - COCKROACH_HOST=roach1
+      - COCKROACH_PORT=26257
+      - COCKROACH_USER=root
+      - COCKROACH_INSECURE=true
+      # - COCKROACH_INIT=
+      - DB_NAME=crabby_userdb
+      - DB_PASSWORD=test
+      - DB_USER=crabby
     depends_on:
       - traefik
     networks:
@@ -114,6 +133,10 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    depends_on:
+      - roach1
+      - roach2
+      - roach3
     networks:
       - roachnet
 

@@ -1,3 +1,4 @@
+workspace = { members = ["custom-images"] }
 [package]
 name = "crabby-auth"
 version = "0.1.0"

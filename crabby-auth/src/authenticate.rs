@@ -122,8 +122,9 @@ impl Authenticator {
         }
         Ok(true)
     }
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(pool: PgPool) -> Self {
         Self {
+            cockroach: pool,
             db: DashMap::new(),
             emails: DashSet::new(),
             key: PasetoSymmetricKey::from(Key::from(SUPER_SECRET_KEY)),
