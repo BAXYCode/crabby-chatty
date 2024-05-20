@@ -101,10 +101,12 @@ services:
       - DB_NAME=crabby_userdb
       - DB_PASSWORD=test
       - DB_USER=crabby
+      - CLUSTER_DNS=admin.roachdb.localhost
+      - CLUSTER_PORT=8081
     depends_on:
       - traefik
     networks:
-      - roachnet
+      - init-db
 
   traefik:
     image: traefik:v3.0
@@ -139,6 +141,7 @@ services:
       - roach3
     networks:
       - roachnet
+      - init-db
 
 volumes:
   roach1:
@@ -148,4 +151,6 @@ volumes:
 
 networks:
   roachnet:
+    external: true
+  init-db:
     external: true
