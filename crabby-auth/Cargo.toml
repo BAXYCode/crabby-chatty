@@ -1,4 +1,4 @@
-workspace = { members = ["custom-images", "reqtest"] }
+workspace = { members = ["custom-images"] }
 [package]
 name = "crabby-auth"
 version = "0.1.0"
@@ -16,11 +16,21 @@ tracing-opentelemetry = "0.23.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 tonic = "0.11.0"
-uuid = { version = "1.8.0", features = ["fast-rng", "v7", "v4"] }
+uuid = { version = "1.8.0", features = [
+    "fast-rng",
+    "v7",
+    "v4",
+    "serde",
+    "macro-diagnostics",
+] }
 sqlx = { version = "0.7.4", features = [
     "postgres",
     "migrate",
     "runtime-tokio",
+    "uuid",
+    "chrono",
 ] }
+anyhow = "1.0.86"
+chrono = { version = "0.4.38", features = ["serde"] }
 [build-dependencies]
 tonic-build = "0.11"

@@ -5,8 +5,12 @@ use tonic::transport::Server;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = "postgresql://root@roach2:26257/defaultdb?sslmode=disable";
+    let url = "postgresql://root@localhost:26257/defaultdb?sslmode=disable";
     let pg = PgPool::connect(url).await?;
+    sqlx::migrate!("db/migrations")
+        .set_locking(false)
+        .run(&pg)
+        .await?;
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::filter::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -28,8 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use crate::authenticate::auth::{authenticate_client::AuthenticateClient, RegisterRequest};
+    use anyhow::Result;
     #[tokio::test]
-    async fn test_register() {
+    async fn test_register() -> Result<()> {
         let mut client = AuthenticateClient::connect("http://0.0.0.0:6869")
             .await
             .unwrap();
@@ -38,12 +43,11 @@ mod tests {
             email: "lainebenjamin@gmail.com".to_string(),
             username: "BaxyDidIt".to_string(),
             password: "hahahtesoroito".to_string(),
+            firstname: "Benjamin".to_string(),
+            lastname: "Laine".to_string(),
         });
-        let res = client.register(register_test).await;
-        if let Ok(res) = res {
-            println!("RESPONSE: {:?}", res);
-        } else {
-            println!("ERR: {:?}", res.expect_err("wtf"))
-        }
+        let res = client.register(register_test).await?;
+        println!("RESPONSE: {:?}", res);
+        Ok(())
     }
 }

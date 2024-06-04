@@ -1,10 +1,12 @@
 #![allow(unused_variables)]
+use anyhow::{Context, Error, Result};
+use backon::{BlockingRetryable, ExponentialBuilder};
 use std::env;
-
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
+    // logging
     let _sub: () = tracing_subscriber::registry()
         .with(
             tracing_subscriber::filter::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -15,22 +17,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
+    // environment variables used by cockroach-cli
     info!(name:"Environment Variables", "fetching  necessary environment variables");
     let host = env::var("COCKROACH_HOST").expect("No Host provided");
     let port = env::var("COCKROACH_PORT").expect("No port provided");
     let _user = env::var("COCKROACH_USER").expect("OS user not provided");
-
-    let cluster_host = env::var("CLUSTER_DNS").expect("missing cluster dns");
-    let cluster_port = env::var("CLUSTER_PORT").expect("missing cluster http port");
+    // environment variables used by this tool to contact cockroach cluster
+    let cluster_host = env::var("CLUSTER_HOST").expect("missing cluster dns");
+    let cluster_port = env::var("CLUSTER_HTTP_PORT").expect("missing cluster http port");
 
     info!(name:"Environment Variables", "Connecting to cluster from {} at port number {}", host, port);
     let _insecure = env::var("COCKROACH_INSECURE");
     let _certs = env::var("COCKROACH_CERTS_DIR");
 
+    // Initialization info to setup db
     let db_name = env::var("DB_NAME");
     let db_user = env::var("DB_USER");
     let db_pass = env::var("DB_PASS");
 
+    // Environment variable specifying wether to initialize the cluster
     let init = env::var("COCKROACH_INIT");
 
     if let Ok(init) = init {
@@ -88,22 +93,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-#[instrument]
-pub fn wait_ready(host: String, port: String) -> Result<(), reqwest::Error> {
-    info!(name:"Node Boot up", "waiting on Node activation");
-    let url = format!("http://admin.roachdb.localhost:{port}/api/v2/health/");
-    loop {
-        let ready = reqwest::blocking::get(&url);
-        if let Err(e) = ready {
-            // println!("fail");
-            continue;
-        }
-        info!(name:"test", "{ready:?}");
 
-        if ready.unwrap().text()? == "{}" {
-            info!(name:"Node Boot up", "Node boot up is complete");
-            break;
-        }
-    }
+#[instrument]
+pub fn wait_ready(host: String, port: String) -> Result<()> {
+    info!(name:"Node Boot up", "waiting on Node activation");
+    let url = format!("http://{host}:{port}/admin/db/api/v2/health/");
+    let op = || {
+        let url = reqwest::Url::parse(&url)
+            .map_err(Error::new)
+            .context("parsing error, make sure url is in appropriate format")?;
+
+        let ready = reqwest::blocking::get(url)?.error_for_status()?;
+        Ok(ready)
+    };
+    // Try to contact the cluster and wait for it to spin-up if it is offline
+    let retry = op
+        .retry(&ExponentialBuilder::default())
+        .when(|e: &anyhow::Error| e.to_string() != "parsing error")
+        .notify(|err, duration| {
+            warn!("Failed with error {}, will retry after {:?}", err, duration);
+        })
+        .call()?;
+    info!("Response status: {:?}", retry.status());
+
     Ok(())
 }

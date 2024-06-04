@@ -10,6 +10,9 @@ message RegisterRequest {
         string email = 1;
         string username = 2;
         string password= 3;
+        string firstname= 4;
+        string lastname = 5;
+        
     }
 message RegisterResponse{
    oneof Response{

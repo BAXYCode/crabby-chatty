@@ -8,6 +8,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         email: "lainebenjamin@gmail.com".to_string(),
         username: "BaxyDidIt".to_string(),
         password: "hahahtesoroito".to_string(),
+        firstname: "Benjamin".to_string(),
+        lastname: "Laine".to_string(),
     });
     let res = client.register(register_test).await?;
     println!("RESPONSE: {:?}", res);
