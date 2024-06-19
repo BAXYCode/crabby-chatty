@@ -1,8 +1,0 @@
-
-up:
-    docker compose up --remove-orphans
-down:
-    docker compose down
-init-comp: down && up
-    cd /home/benjaminlaine/Documents/projects/crabby-chatty/crabby-auth/custom-images && cargo build --bin init_db --release
-    docker build -f custom-images/Dockerfile -t baxydocker/db-init:latest .

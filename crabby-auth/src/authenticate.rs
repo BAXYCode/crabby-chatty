@@ -16,7 +16,12 @@ use sqlx::types::chrono::{DateTime, Local as LocalTime};
 use sqlx::{query, query_as, Acquire, PgPool, Postgres};
 use tonic::{async_trait, Code};
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
+use tracing_subscriber::fmt::format;
 use uuid::{timestamp, Timestamp, Uuid};
+
+use crate::model::{EmailDb, PasswordDb, SaltDb, UserDb, UsernameDb};
+
+use self::auth::login_response::Login;
 pub mod auth {
     tonic::include_proto!("authentication");
 }
@@ -30,7 +35,6 @@ struct User {
 }
 pub(crate) struct Authenticator {
     cockroach: PgPool,
-    db: dashmap::DashMap<String, User>,
     key: PasetoSymmetricKey<V4, Local>,
 }
 
@@ -41,24 +45,20 @@ impl Authenticate for Authenticator {
         &self,
         request: Request<RegisterRequest>,
     ) -> Result<TonicResponse<RegisterResponse>, Status> {
-        //TODO: add logic to check if username n stuff is valid
-        //
-        // let cred = request.into_inner();
-        // let username = cred.username.clone();
-        // let email = cred.email.clone();
-        // let _register_info = self.check_register_info(&cred).await?;
-        // //INFO: make new user with provided and verified info
-        //
-        // let user = Self::new_user(cred).await?;
+        //INFO: make new user with provided and verified info
         let user = self.register_transaction(request).await;
         if let Err(user) = user {
-            return Err(Status::invalid_argument(
-                "Invalid arguments, username or email is unavailable",
-            ));
+            // return Err(Status::invalid_argument(
+            //     "Invalid arguments, username or email is unavailable",
+            // ));
+            let err = format!("error: {:?}", user);
+            return Err(Status::invalid_argument(err));
         }
+        //INFO: unwrap is fine here because err is handled above
+        // println!("user: {:?} has successfully registered", user);
         let user = user.unwrap();
         let token = self.new_token(&user.username, &user.id, &user.email);
-        println!("token: {:?}", token);
+        // println!("token: {:?}", token);
         let response = Response::Token(token.unwrap());
         let response = Some(response);
         let register_response = RegisterResponse { response };
@@ -72,57 +72,113 @@ impl Authenticate for Authenticator {
         if self.check_login_info(&creds).await? {
             //INFO: we can allow an "unwrap" here because the credentials have already been checked
             //so we know the user does infact exist
-            let user = self.db.get(&creds.username).unwrap();
-            let token = self.new_token(&creds.username, &user.id, &user.email);
+            let user = self.get_user_from_username(&creds.username).await?;
+            let email = self.get_email_from_id(user.email).await?;
+
+            let token = self.new_token(&creds.username, &user.id, email.email.as_str());
             if let Err(err) = token {
                 return Err(Status::internal(err.to_string()));
             }
-            // let login_res = LoginResponse::;
-            todo!()
+            let login = Login::Token(token.unwrap());
+            let some_login = Some(login);
+            let login_res = LoginResponse { login: some_login };
+            let tonic_res = TonicResponse::new(login_res);
+            println!("user: {:?} has successfully logged in", user);
+            Ok(tonic_res)
         } else {
-            todo!()
+            return Err(Status::invalid_argument(
+                "Username or Password were not found, please try again",
+            ));
         }
     }
 }
 
 impl Authenticator {
-    async fn check_login_info(&self, creds: &LoginRequest) -> Result<bool, Status> {
+    async fn get_email_from_id(&self, id: i64) -> Result<EmailDb, Status> {
+        let email_row = query_as!(
+            EmailDb,
+            "select id, email from valid.email where id=($1);",
+            id
+        )
+        .fetch_one(&self.cockroach)
+        .await
+        .map_err(|err| {
+            let err = format!("sqlx error: {:?}", err);
+            Status::internal(err)
+        })?;
+        Ok(email_row)
+    }
+    async fn get_user_from_username(&self, username: &str) -> Result<UserDb, Status> {
+        let user = self
+            .get_user_row_from_username_id(self.get_username_row_from_username(username).await?.id)
+            .await?;
+        Ok(user)
+    }
+    async fn get_username_row_from_username(&self, username: &str) -> Result<UsernameDb, Status> {
         let username_row: UsernameDb = query_as!(
             UsernameDb,
             "select id, username from valid.username where username=($1);",
-            &creds.username
+            username
         )
         .fetch_one(&self.cockroach)
         .await
-        .map_err(|_| Status::internal("sqlx is fucked up kekW"))?;
-
-        let user = query_as!(
-            UserDb,
-            "select * from valid.users where username=($1)",
-            username_row.id
-        )
-        .fetch_one(&self.cockroach)
-        .await
-        .map_err(|_| Status::internal("sqlx is cooked my bad gang"));
-
-        if let Ok(user) = user {
-            self.check_username(&creds.username).await.map_err(|err| {
-                if err.code() == Code::Internal {
-                    Status::internal("internal error, sorry!")
-                } else {
-                    Status::invalid_argument("Username or password not matching our records")
-                }
-            })?;
-            // self.check_password(user.password.as_str(), &creds.password)?;
-
-            Ok(true)
-        } else {
-            Err(Status::invalid_argument(
-                "Username or Password is incorrect, try again",
-            ))
-        }
+        .map_err(|err| {
+            let err = format!("sqlx error: {:?}", err);
+            Status::internal(err)
+        })?;
+        Ok(username_row)
     }
-    async fn check_username(&self, username: &str) -> AnyResult<(), Status> {
+    async fn get_user_row_from_username_id(&self, id: i64) -> Result<UserDb, Status> {
+        let user = query_as!(UserDb, "select * from valid.users where username=($1)", id)
+            .fetch_one(&self.cockroach)
+            .await
+            .map_err(|err| {
+                let err = format!("sqlx error: {:?}", err);
+                Status::internal(err)
+            })?;
+        Ok(user)
+    }
+    async fn get_password_from_id(&self, id: i64) -> Result<PasswordDb, Status> {
+        let password = query_as!(PasswordDb, "select * from valid.password where id=($1)", id)
+            .fetch_one(&self.cockroach)
+            .await
+            .map_err(|err| {
+                let err = format!("sqlx error: {:?}", err);
+                Status::internal(err)
+            })?;
+        Ok(password)
+    }
+    async fn get_salt_from_id(&self, id: i64) -> Result<SaltDb, Status> {
+        let salt = query_as!(SaltDb, "select * from valid.salt where id=($1)", id)
+            .fetch_one(&self.cockroach)
+            .await
+            .map_err(|err| {
+                let err = format!("sqlx error: {:?}", err);
+                Status::internal(err)
+            })?;
+        Ok(salt)
+    }
+    async fn check_login_info(&self, creds: &LoginRequest) -> Result<bool, Status> {
+        let username_row = self.get_username_row_from_username(&creds.username).await?;
+
+        let user = self.get_user_row_from_username_id(username_row.id).await?;
+        println!("user: {:?}", user);
+        let password = self.get_password_from_id(user.password).await?;
+        //TODO: remove salt table from database as it is redundant
+
+        // let salt = self.get_salt_from_id(user.salt).await?;
+        println!(
+            "hashed: {:?} \n raw: {:?} ",
+            password.password, &creds.password
+        );
+        let valid_login =
+            argon2::verify_encoded(password.password.as_str(), creds.password.as_bytes()).map_err(
+                |_| Status::invalid_argument("Username or Password are incorrect, try again."),
+            )?;
+
+        Ok(valid_login)
+    }
+    async fn check_username(&self, username: &str) -> Result<(), Status> {
         // FIX: error handling
         let con = self.cockroach.acquire().await.unwrap();
         let username_available = query!(
@@ -133,38 +189,13 @@ impl Authenticator {
         .await
         .map_err(|err| Status::internal("sqlx is fucked"))?;
         if let Some(username_db) = username_available {
-            return Err(Status::already_exists("inner"));
+            return Err(Status::already_exists("Username already exists"));
         }
         Ok(())
     }
-    // fn check_password(&self, pwd: &str, pwd_attempt: &str) -> Result<(), Status> {
-    //     let res = argon2::verify_encoded(pwd, pwd_attempt.as_bytes());
-    //     if let Ok(res) = res {
-    //         return Ok(());
-    //     }
-    //     Err(Status::invalid_argument(
-    //         "Username or Password is invalid, try again",
-    //     ))
-    // }
-
-    // async fn check_register_info(&self, creds: &RegisterRequest) -> Result<bool, Status> {
-    //     if self.username_available(&creds.username).await {
-    //         return Err(Status::invalid_argument(
-    //             "Username is already taken, try something different bozo",
-    //         ));
-    //     }
-    //
-    //     if self.email_available(&creds.email).await {
-    //         return Err(Status::invalid_argument(
-    //             "Email is already in use, try something else bozo",
-    //         ));
-    //     }
-    //     Ok(true)
-    // }
     pub(crate) fn new(pool: PgPool) -> Self {
         Self {
             cockroach: pool,
-            db: DashMap::new(),
             key: PasetoSymmetricKey::from(Key::from(SUPER_SECRET_KEY)),
         }
     }
@@ -194,11 +225,6 @@ impl Authenticator {
             .map_err(|err| Status::internal("internal error with Paseto token Builder"))?;
         std::result::Result::Ok(token)
     }
-    async fn username_available(&self, username: &str) -> bool {
-        println!("username: {:?}", username);
-        println!("{:?}", self.db.contains_key(username));
-        self.db.contains_key(username)
-    }
     async fn email_available(&self, email: &str) -> bool {
         let email: Result<EmailDb, sqlx::Error> =
             query_as(format!("SELECT * FROM valid.email WHERE email = {}", email).as_str())
@@ -214,6 +240,7 @@ impl Authenticator {
         let salt = Self::generate_salt();
 
         let hash = argon2::hash_encoded(pwd.as_bytes(), salt.as_bytes(), &config);
+        // let verified = argon2::verify_encoded(&pwd, hash.).unwrap();
         if let Ok(hashed) = hash {
             Ok((hashed, salt))
         } else {
@@ -241,14 +268,12 @@ impl Authenticator {
         let email = creds.email.clone();
         let lastname = creds.lastname.clone();
         let firstname = creds.firstname.clone();
-        println!(" salt : {:?}", salt);
 
         let salt: Option<SaltDb> =
             query_as("with rows as (INSERT INTO valid.salt (salt) VALUES ($1) RETURNING id, salt) SELECT id, salt FROM rows")
                 .bind(salt)
                 .fetch_optional(&self.cockroach)
                 .await?;
-        println!("salt: {:?}", salt);
         // .map_err(|err| Error::new(err).context("salt issue"))?;
         let password: PasswordDb = query_as!(
             PasswordDb,
@@ -297,37 +322,4 @@ impl Authenticator {
             username: username.username,
         })
     }
-}
-#[derive(FromRow, Debug)]
-struct RowId(i64);
-#[derive(FromRow, Debug)]
-struct SaltDb {
-    id: i64,
-    salt: Uuid,
-}
-#[derive(FromRow)]
-struct PasswordDb {
-    id: i64,
-    password: String,
-}
-#[derive(FromRow)]
-struct EmailDb {
-    id: i64,
-    email: String,
-}
-#[derive(FromRow, Debug)]
-struct UsernameDb {
-    id: i64,
-    username: String,
-}
-#[derive(FromRow)]
-struct UserDb {
-    id: Uuid,
-    email: i64,
-    username: i64,
-    password: i64,
-    salt: i64,
-    created_at: DateTime<LocalTime>,
-    firstname: String,
-    lastname: String,
 }

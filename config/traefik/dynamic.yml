@@ -1,0 +1,28 @@
+http:
+  serversTransports:
+    cockroach:
+      insecureSkipVerify: true
+      rootCAs: /certs/.cockroach-certs/ca.crt
+
+
+tls:
+#   stores:
+#     default:
+#       defaultCertificate:
+#          certFile: /certs/.cockroach-certs/node.crt
+#          keyFile: /certs/.cockroach-key/node.key
+  certificates:
+#     # - certFile: /certs/.cockroach-certs/ca.crt
+#     #   keyFile: /certs/.cockroach-key/ca.key
+    - certFile: /certs/.cockroach-certs/node.crt
+      keyFile: /certs/.cockroach-key/node.key
+      stores: 
+      - default
+#   options:
+#     default:
+#       sniStrict: true
+#   rootCAs:
+#     - /certs/.cockroach-certs/ca.crt
+  #   - /certs/.cockroach-certs/node.crt
+  #
+

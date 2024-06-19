@@ -1,0 +1,225 @@
+
+services:
+  roach1:
+    image: cockroachdb/cockroach:v23.2.4
+    hostname: roach1.crabby-userdb.io
+    volumes:
+      - "roach1:/cockroach/cockroach-data"
+      - "certs:/certs:ro"
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO   --http-addr=0.0.0.0:8080 --cache=.25   --accept-sql-without-tls --advertise-addr=roach1.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs
+    container_name: roach1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=roachnet"
+      # Middleware for redirect
+      # - "traefik.http.middlewares.db_mid.headers.ssltemporaryredirect=false"
+      # - "traefik.http.middlewares.db_mid.headers.sslredirect=true"
+      #Middleware for strip prefix 
+      - "traefik.http.middlewares.strip.stripprefix.prefixes=/dev/db"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`traefik`)&&PathPrefix(`/dev/db/`)|| HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
+      - "traefik.http.routers.roach_admin.tls=true"
+      - "traefik.http.routers.roach_admin.entrypoints=traefik"
+      - "traefik.http.routers.roach_admin.middlewares=strip@docker"
+      # - "traefik.http.routers.roach_admin.middlewares=db_mid@docker"
+      # - "traefik.http.routers.roach_admin.tls.options=default"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+    networks:
+      - roachnet
+    depends_on:
+      certs_gen_tool:
+        condition: "service_completed_successfully"
+
+  roach2:
+    image: cockroachdb/cockroach:v23.2.4
+    hostname: roach2.crabby-userdb.io
+    volumes:
+      - "roach2:/cockroach/cockroach-data"
+      - "certs:/certs:ro"
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080 --join=roach1.crabby-userdb.io:26257 --cache=.25  --advertise-addr=roach2.crabby-userdb.io:26257 --certs-dir=/certs
+    container_name: roach2
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=roachnet"
+      # Middleware for redirect
+      # - "traefik.http.middlewares.db_mid.headers.ssltemporaryredirect=false"
+      # - "traefik.http.middlewares.db_mid.headers.sslredirect=true"
+      #Middleware for strip prefix 
+      - "traefik.http.middlewares.strip.stripprefix.prefixes=/dev/db"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`traefik`)&&PathPrefix(`/dev/db/`)|| HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
+      - "traefik.http.routers.roach_admin.tls=true"
+      - "traefik.http.routers.roach_admin.entrypoints=traefik"
+      - "traefik.http.routers.roach_admin.middlewares=strip@docker"
+      # - "traefik.http.routers.roach_admin.middlewares=db_mid@docker"
+      # - "traefik.http.routers.roach_admin.tls.options=default"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+    networks:
+      - roachnet
+    depends_on:
+      certs_gen_tool:
+        condition: "service_completed_successfully"
+
+  roach3:
+    image: cockroachdb/cockroach:v23.2.4
+    hostname: roach3.crabby-userdb.io
+    volumes:
+      - "roach3:/cockroach/cockroach-data"
+      - "certs:/certs:ro"
+
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080  --cache=.25    --advertise-addr=roach3.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs
+    container_name: roach3
+    labels:
+
+      - "traefik.enable=true"
+      - "traefik.docker.network=roachnet"
+      # Middleware for redirect
+      # - "traefik.http.middlewares.db_mid.headers.ssltemporaryredirect=false"
+      # - "traefik.http.middlewares.db_mid.headers.sslredirect=true"
+      #Middleware for strip prefix 
+      - "traefik.http.middlewares.strip.stripprefix.prefixes=/dev/db"
+      # admin interface 
+      - "traefik.http.routers.roach_admin.rule=Host(`traefik`)&&PathPrefix(`/dev/db/`)|| HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
+      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
+      - "traefik.http.routers.roach_admin.tls=true"
+      - "traefik.http.routers.roach_admin.entrypoints=traefik"
+      - "traefik.http.routers.roach_admin.middlewares=strip@docker"
+      # - "traefik.http.routers.roach_admin.middlewares=db_mid@docker"
+      # - "traefik.http.routers.roach_admin.tls.options=default"
+      # Sql command interface 
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
+      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+    # depends_on:
+    #   - traefik
+    networks:
+      - roachnet
+    depends_on:
+      certs_gen_tool:
+        condition: "service_completed_successfully"
+
+
+  db-init:
+    image: baxydocker/db-init:latest
+    container_name: init
+    hostname: roach-init
+    command: "/tool"
+    environment:
+      - COCKROACH_HOST=traefik
+      - COCKROACH_PORT=26257
+      - COCKROACH_USER=root
+      - COCKROACH_INSECURE=false
+      - COCKROACH_CERTS_DIR=/certs
+      # uncomment the following line when first initializing a cluster
+      - COCKROACH_INIT=
+      - DATABASE_NAME=crabby_userdb
+      - DATABASE_PASSWORD=test
+      - DATABASE_USER=crabby
+      - HEALTHCHECK=https://traefik:8080/dev/db/api/v2/health/?ready=1
+    depends_on:
+      # - traefik
+      certs_gen_tool:
+        condition: "service_completed_successfully"
+    networks:
+      - roachnet
+    volumes:
+      - "certs:/certs"
+  certs_gen_tool:
+    image: baxydocker/certs_gen:latest
+    container_name: certs_gen
+    command: "/gen"
+    environment:
+      - CLIENT_USERNAME=crabby
+      - NODE_ALTERNATIVE_NAMES=crabby-userdb.io *.crabby-userdb.io localhost traefik
+      # - COCKROACH_SKIP_KEY_PERMISSION_CHECK=true
+    volumes:
+      - "certs:/.cockroach-certs"
+    networks:
+      - roachnet
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    hostname: traefik
+    command:
+      - "--api=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file=true"
+      -  --providers.file.filename=dynamic.yml
+      # - "--log.filepath=traefik.log"
+      - "--entrypoints.roach_admin=true"
+      - "--entrypoints.roachdb_sql=true"
+      - "--entrypoints.web=true"
+      - "--entrypoints.web.address=:80"
+      # - "--entrypoints.roach_admin.address=:8080"
+      - "--entrypoints.roachdb_sql.address=:26257"
+      - "--log=true"
+      - "--log.filepath=/traefik.log"
+      - "--log.format=json"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.addinternals=true"
+      - "--accesslog.filepath=/traefik.access.log"
+      # INFO: maybe useful
+      # - "--serverstransport.rootcas=/certs/.cockroach-certs/ca.crt"
+    ports:
+      - "69:80"
+      - "8080:8080"
+      - "8081:8081"
+      - "26257:26257"
+    labels:
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && PathPrefix(`/dashboard`))"
+      # - "traefik.http.routers.dashboard.service=api@internal"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "../../config/traefik/dynamic.yml:/dynamic.yml"
+      - "../../logs/traefik.log:/traefik.log"
+      - "../../logs/traefik.access.log:/traefik.access.log"
+      - "certs:/certs:ro"
+    depends_on:
+      # roach1:
+      #   condition: "service_healthy"
+      # roach2:
+      #   condition: "service_healthy"
+      # roach3:
+      #   condition: "service_healthy"
+      certs_gen_tool:
+        condition: "service_completed_successfully"
+    networks:
+      - roachnet
+volumes:
+  roach1:
+  roach2:
+  roach3:
+  certs:
+
+
+networks:
+  roachnet:
+    external: true
+  init-db:
+    external: true

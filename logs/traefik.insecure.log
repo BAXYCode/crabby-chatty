@@ -1,0 +1,22 @@
+2024-06-19T18:42:21Z INF Traefik version 3.0.0-rc5 built on 2024-04-11T16:27:55Z version=3.0.0-rc5
+2024-06-19T18:42:21Z INF 
+Stats collection is disabled.
+Help us improve Traefik by turning this feature on :)
+More details on: https://doc.traefik.io/traefik/contributing/data-collection/
+
+2024-06-19T18:42:21Z INF Starting provider aggregator aggregator.ProviderAggregator
+2024-06-19T18:42:21Z INF Starting provider *traefik.Provider
+2024-06-19T18:42:21Z INF Starting provider *acme.ChallengeTLSALPN
+2024-06-19T18:42:21Z INF Starting provider *docker.Provider
+2024-06-19T18:42:54Z INF I have to go...
+2024-06-19T18:42:54Z INF Stopping server gracefully
+2024-06-19T18:42:54Z ERR error="accept tcp [::]:80: use of closed network connection" entryPointName=web
+2024-06-19T18:42:54Z ERR error="accept tcp [::]:8080: use of closed network connection" entryPointName=traefik
+2024-06-19T18:42:54Z ERR error="close tcp [::]:8080: use of closed network connection" entryPointName=traefik
+2024-06-19T18:42:54Z ERR error="accept tcp [::]:26257: use of closed network connection" entryPointName=roachdb_sql
+2024-06-19T18:42:54Z ERR error="close tcp [::]:80: use of closed network connection" entryPointName=web
+2024-06-19T18:42:54Z ERR error="close tcp [::]:26257: use of closed network connection" entryPointName=roachdb_sql
+2024-06-19T18:42:54Z ERR error="accept tcp [::]:8081: use of closed network connection" entryPointName=roach_admin
+2024-06-19T18:42:54Z ERR error="close tcp [::]:8081: use of closed network connection" entryPointName=roach_admin
+2024-06-19T18:42:55Z INF Server stopped
+2024-06-19T18:42:55Z INF Shutting down
