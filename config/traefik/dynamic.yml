@@ -1,23 +1,26 @@
 http:
+  #serversTransports are used to describe how I would like to communicate with the backend services
   serversTransports:
     cockroach:
-      insecureSkipVerify: true
-      rootCAs: /certs/.cockroach-certs/ca.crt
+      insecureSkipVerify: false
+  #The root Certificate authority "database-certs.crt" is needed so traefik can complete the tls handshake with backend service successfully
+      rootCAs: /db/database-certs.crt
 
 
-tls:
+# tls:
 #   stores:
 #     default:
 #       defaultCertificate:
 #          certFile: /certs/.cockroach-certs/node.crt
 #          keyFile: /certs/.cockroach-key/node.key
-  certificates:
-#     # - certFile: /certs/.cockroach-certs/ca.crt
-#     #   keyFile: /certs/.cockroach-key/ca.key
-    - certFile: /certs/.cockroach-certs/node.crt
-      keyFile: /certs/.cockroach-key/node.key
-      stores: 
-      - default
+#       certificates:
+#
+# #     # - certFile: /certs/.cockroach-certs/ca.crt
+# #     #   keyFile: /certs/.cockroach-key/ca.key
+#         - certFile: /certs/client.root.crt
+#           keyFile: /certs/client.root.key
+#         - certFile: /certs/node.crt
+#           keyFile: /certs/node.key
 #   options:
 #     default:
 #       sniStrict: true

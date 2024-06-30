@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::env;
+use std::{env, path::Path};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
             certs_dir,
             "--ca-key",
             ca_key,
-            // "--overwrite",
+            "--overwrite",
         ])
         .status()
         .expect("could not create Certificate Authority");
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
                 certs_dir,
                 "--ca-key",
                 ca_key,
-                // "--overwrite",
+                "--overwrite",
             ])
             .status()
             .expect("could not create certificate for certain user");
@@ -71,13 +71,27 @@ fn main() -> Result<()> {
         certs_dir,
         "--ca-key",
         ca_key,
-        // "--overwrite",
+        "--overwrite",
     ]);
     let _node = std::process::Command::new("/cockroach")
         .args(args)
         .status()
         .expect("could not generate certificates for node");
-    println!("test2");
+    if Path::new("/lb/database_certs.crt").exists() {
+        let rm = std::process::Command::new("/bin/rm")
+            .args(["/lb/database-certs.crt"])
+            .status()
+            .expect("who cares");
+        info!("rm {:?}", rm);
+    }
+    let file = std::process::Command::new("/bin/cat")
+        .args(["/.cockroach-certs/node.crt", "/.cockroach-certs/ca.crt"])
+        .stdout(std::fs::File::create("/lb/database-certs.crt").unwrap())
+        .spawn()
+        .expect("spawn failure")
+        .wait()
+        .expect("wait failure");
+    info!("concat cert file {:?}", file);
 
     Ok(())
 }
