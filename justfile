@@ -18,5 +18,5 @@ comp-certs:
     cd /home/benjaminlaine/Documents/projects/crabby-chatty/crabby-auth/custom-images && cargo build --bin certs_gen --release
     docker build -f docker/auth/certs_gen.Dockerfile -t baxydocker/certs_gen:latest .
 up-secure:
-    cd docker/auth && docker compose -f docker-compose.secure.yaml down
+    cd docker/auth && docker compose -f docker-compose.secure.yaml up --remove-orphans
 

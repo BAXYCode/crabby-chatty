@@ -92,6 +92,26 @@ fn main() -> Result<()> {
         .wait()
         .expect("wait failure");
     info!("concat cert file {:?}", file);
+    let file = std::process::Command::new("/bin/cat")
+        .args([
+            "/.cockroach-certs/client.crabby.crt",
+            "/.cockroach-certs/ca.crt",
+        ])
+        .stdout(std::fs::File::create("/lb/client.root.ca.crt").unwrap())
+        .spawn()
+        .expect("spawn failure")
+        .wait()
+        .expect("wait failure");
+    let file = std::process::Command::new("/bin/cat")
+        .args([
+            "/.cockroach-certs/client.crabby.crt",
+            "/.cockroach-certs/ca.crt",
+        ])
+        .stdout(std::fs::File::create("/lb/client.crabby.ca.crt").unwrap())
+        .spawn()
+        .expect("spawn failure")
+        .wait()
+        .expect("wait failure");
 
     Ok(())
 }

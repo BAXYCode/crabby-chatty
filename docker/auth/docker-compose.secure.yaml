@@ -6,26 +6,36 @@ services:
     volumes:
       - "roach1:/cockroach/cockroach-data"
       - "certs:/certs:ro"
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO   --http-addr=0.0.0.0:8080 --cache=.25   --accept-sql-without-tls --advertise-addr=roach1.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO   --http-addr=0.0.0.0:8080 --cache=.25 --advertise-addr=roach1.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach1
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
-      - "traefik.http.routers.roach_admin.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.scheme=https"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.serverstransport=cockroach@file"
-      - "traefik.http.routers.roach_admin.tls=true"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      - "traefik.http.routers.roach_https.entrypoints=roach_https"
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.tls=true"
+      - "traefik.http.routers.roach_https.service=db_https"
+      - "traefik.http.services.db_https.loadbalancer.server.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.server.scheme=https"
+      #Healthcheck for https endpoint of database
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.followredirects=true"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.interval=60s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.timeout=5s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.method=GET"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.path=/api/v2/health/?ready=1"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.status=200"
+      #Backend Communication scheme
+      - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
+
       # Sql command interface 
       - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
+      - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+      - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
+      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_sql@file"
     networks:
       roachnet:
         ipv4_address: 172.19.0.249
@@ -40,26 +50,36 @@ services:
     volumes:
       - "roach2:/cockroach/cockroach-data"
       - "certs:/certs:ro"
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080 --join=roach1.crabby-userdb.io:26257 --cache=.25  --advertise-addr=roach2.crabby-userdb.io:26257 --certs-dir=/certs
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080 --join=roach1.crabby-userdb.io:26257 --cache=.25  --advertise-addr=roach2.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach2
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
-      - "traefik.http.routers.roach_admin.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.scheme=https"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.serverstransport=cockroach@file"
-      - "traefik.http.routers.roach_admin.tls=true"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      - "traefik.http.routers.roach_https.entrypoints=roach_https"
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.tls=true"
+      - "traefik.http.routers.roach_https.service=db_https"
+      - "traefik.http.services.db_https.loadbalancer.server.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.server.scheme=https"
+      #Healthcheck for https endpoint of database
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.followredirects=true"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.interval=60s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.timeout=5s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.method=GET"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.path=/api/v2/health/?ready=1"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.status=200"
+      #Backend Communication scheme
+      - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
+
       # Sql command interface 
       - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
+      - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+      - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
+      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_sql@file"
     networks:
       roachnet:
         ipv4_address: 172.19.0.248
@@ -74,27 +94,37 @@ services:
       - "roach3:/cockroach/cockroach-data"
       - "certs:/certs:ro"
 
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080  --cache=.25    --advertise-addr=roach3.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080  --cache=.25    --advertise-addr=roach3.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach3
     labels:
 
       - "traefik.enable=true"
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
-      - "traefik.http.routers.roach_admin.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8080"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.sticky=true"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.scheme=https"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.serverstransport=cockroach@file"
-      - "traefik.http.routers.roach_admin.tls=true"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
+      - "traefik.http.routers.roach_https.entrypoints=roach_https"
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.tls=true"
+      - "traefik.http.routers.roach_https.service=db_https"
+      - "traefik.http.services.db_https.loadbalancer.server.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.server.scheme=https"
+      #Healthcheck for https endpoint of database
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.followredirects=true"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.interval=60s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.timeout=5s"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.port=8080"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.method=GET"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.path=/api/v2/health/?ready=1"
+      - "traefik.http.services.db_https.loadbalancer.healthcheck.status=200"
+      #Backend Communication scheme
+      - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
+
       # Sql command interface 
       - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
+      - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
+      - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
+      - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
+      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_sql@file"
     networks:
       roachnet:
         ipv4_address: 172.19.0.247
@@ -142,36 +172,37 @@ services:
       - roachnet
 
   traefik:
-    image: traefik:v3.0.3
+    image: traefik:v3.0.4
     container_name: traefik
     hostname: traefik
     command:
-      # - "--api=true"
-      # - "--api.insecure=true"
+      - "--api=true"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.watch=true"
       - "--providers.docker.exposedbydefault=false"
       -  --providers.file.filename=dynamic.yml
-      # - "--log.filepath=traefik.log"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.roach_admin.address=:8080"
-      - "--entrypoints.roachdb_sql.address=:26257"
+      - "--entrypoints.traefik.address=:9090"
+      - "--entrypoints.roach_https.address=:8080"
+      - "--entrypoints.roach_inter.address=:26257"
+      - "--entrypoints.roach_sql.address=:36257"
       - "--log=true"
       - "--log.filepath=/traefik.log"
       - "--log.format=json"
       - "--log.level=DEBUG"
       - "--accesslog=true"
       - "--accesslog.format=json"
-      - "--accesslog.addinternals=true"
       - "--accesslog.filepath=/traefik.access.log"
     ports:
+      #some apache server is running, not sure why
       - "69:80"
       - "8080:8080"
-      - "8081:8081"
+      - "8081:9090"
       - "26257:26257"
-    # labels:
-      # - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && PathPrefix(`/dashboard`))"
-      # - "traefik.http.routers.dashboard.service=api@internal"
+    labels:
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.service=api@internal"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "../../config/traefik/dynamic.yml:/dynamic.yml"
