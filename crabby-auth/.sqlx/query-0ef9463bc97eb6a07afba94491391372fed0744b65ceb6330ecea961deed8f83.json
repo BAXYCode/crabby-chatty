@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": " INSERT INTO valid.username (username) VALUES ($1) RETURNING *; ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0ef9463bc97eb6a07afba94491391372fed0744b65ceb6330ecea961deed8f83"
+}

@@ -1,19 +1,19 @@
 
 services:
   roach1:
-    image: cockroachdb/cockroach:v23.2.4
-    hostname: roach1.crabby-userdb.io
+    image: cockroachdb/cockroach:latest
+    hostname: roach1-db.crabby-chatty.io
     volumes:
       - "roach1:/cockroach/cockroach-data"
-      - "certs:/certs:ro"
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO   --http-addr=0.0.0.0:8080 --cache=.25 --advertise-addr=roach1.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
+      - "../volumes/certs:/certs:ro"
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO   --http-addr=0.0.0.0:8080 --cache=.25 --advertise-addr=roach1-db.crabby-chatty.io:26257 --join=roach1-db.crabby-chatty.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach1
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
       - "traefik.http.routers.roach_https.entrypoints=roach_https"
-      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-chatty\\.io$`) "
       - "traefik.http.routers.roach_https.tls=true"
       - "traefik.http.routers.roach_https.service=db_https"
       - "traefik.http.services.db_https.loadbalancer.server.port=8080"
@@ -45,19 +45,19 @@ services:
 
 
   roach2:
-    image: cockroachdb/cockroach:v23.2.4
-    hostname: roach2.crabby-userdb.io
+    image: cockroachdb/cockroach:latest
+    hostname: roach2-db.crabby-chatty.io
     volumes:
       - "roach2:/cockroach/cockroach-data"
-      - "certs:/certs:ro"
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080 --join=roach1.crabby-userdb.io:26257 --cache=.25  --advertise-addr=roach2.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
+      - "../volumes/certs:/certs:ro"
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080 --join=roach1-db.crabby-chatty.io:26257 --cache=.25  --advertise-addr=roach2-db.crabby-chatty.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach2
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
       - "traefik.http.routers.roach_https.entrypoints=roach_https"
-      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-chatty\\.io$`) "
       - "traefik.http.routers.roach_https.tls=true"
       - "traefik.http.routers.roach_https.service=db_https"
       - "traefik.http.services.db_https.loadbalancer.server.port=8080"
@@ -88,13 +88,13 @@ services:
         condition: "service_completed_successfully"
 
   roach3:
-    image: cockroachdb/cockroach:v23.2.4
-    hostname: roach3.crabby-userdb.io
+    image: cockroachdb/cockroach:latest
+    hostname: roach3-db.crabby-chatty.io
     volumes:
       - "roach3:/cockroach/cockroach-data"
-      - "certs:/certs:ro"
+      - "../volumes/certs:/certs:ro"
 
-    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080  --cache=.25    --advertise-addr=roach3.crabby-userdb.io:26257 --join=roach1.crabby-userdb.io:26257 --certs-dir=/certs --sql-addr=:36257
+    command: start --cluster-name=crabby-roach-secure --logtostderr=WARNING --log-file-verbosity=INFO  --http-addr=0.0.0.0:8080  --cache=.25    --advertise-addr=roach3-db.crabby-chatty.io:26257 --join=roach1-db.crabby-chatty.io:26257 --certs-dir=/certs --sql-addr=:36257
     container_name: roach3
     labels:
 
@@ -102,7 +102,7 @@ services:
       - "traefik.docker.network=auth_roachnet"
       # admin interface 
       - "traefik.http.routers.roach_https.entrypoints=roach_https"
-      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) "
+      - "traefik.http.routers.roach_https.rule=Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-chatty\\.io$`) "
       - "traefik.http.routers.roach_https.tls=true"
       - "traefik.http.routers.roach_https.service=db_https"
       - "traefik.http.services.db_https.loadbalancer.server.port=8080"
@@ -156,17 +156,17 @@ services:
     networks:
       - roachnet
     volumes:
-      - "certs:/certs"
+      - "../volumes/certs:/certs"
   certs_gen_tool:
     image: baxydocker/certs_gen:latest
     container_name: certs_gen
     command: "/gen"
     environment:
       - CLIENT_USERNAME=crabby
-      - NODE_ALTERNATIVE_NAMES=crabby-userdb.io *.crabby-userdb.io localhost traefik 172.19.0.249 172.19.0.248 172.19.0.247 
+      - NODE_ALTERNATIVE_NAMES=crabby-chatty.io *.crabby-chatty.io localhost traefik 172.19.0.249 172.19.0.248 172.19.0.247 
       # - COCKROACH_SKIP_KEY_PERMISSION_CHECK=true
     volumes:
-      - "certs:/.cockroach-certs"
+      - "../volumes/certs:/.cockroach-certs"
       - "concat-certs:/lb"
     networks:
       - roachnet
@@ -200,15 +200,16 @@ services:
       - "8080:8080"
       - "8081:9090"
       - "26257:26257"
-    labels:
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && PathPrefix(`/dashboard`))"
-      - "traefik.http.routers.dashboard.service=api@internal"
+      - "36257:36257"
+    # labels:
+    #   - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && PathPrefix(`/dashboard`))"
+    #   - "traefik.http.routers.dashboard.service=api@internal"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "../../config/traefik/dynamic.yml:/dynamic.yml"
       - "../../logs/traefik.log:/traefik.log"
       - "../../logs/traefik.access.log:/traefik.access.log"
-      - "certs:/certs:ro"
+      - "../volumes/certs:/certs:ro"
       - "concat-certs:/db:ro"
     depends_on:
       certs_gen_tool:
@@ -216,11 +217,28 @@ services:
     networks:
       roachnet:
         ipv4_address: 172.19.0.250
+
+
+  tracing: 
+    restart: always
+    image: jaegertracing/all-in-one:1.58
+    container_name: jaeger
+    ports:
+      - 14268:14268
+      - 16686:16686 
+    networks: 
+      - roachnet
+
+    # labels:
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.crabby_jaeger.entrypoints=web"
+      # - "traefik.http.routers.crabby_jaeger.rule=Host('tracing.crabby-chatty.io')"
+      # - "traefik.http.services"
 volumes:
   roach1:
   roach2:
   roach3:
-  certs:
+  # certs:
   concat-certs:
 
 

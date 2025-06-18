@@ -5,7 +5,6 @@ use futures::{
     SinkExt,
 };
 
-use log::{info, log};
 use reqwest::Client;
 use reqwest_websocket::{self, Message, RequestBuilderExt, WebSocket};
 use serde::{Deserialize, Serialize};
@@ -14,6 +13,7 @@ use tokio::{
     select,
 };
 use tokio_util::codec::length_delimited;
+use tracing::info;
 use uuid::{NoContext, Timestamp, Uuid};
 #[tokio::main]
 async fn main() {

@@ -1,13 +1,8 @@
 use sqlx::prelude::FromRow;
-use sqlx::types::chrono::{DateTime, Local as LocalTime};
+use sqlx::types::chrono::{DateTime, Utc};
 use uuid::Uuid;
 #[derive(FromRow, Debug)]
 struct RowId(i64);
-#[derive(FromRow, Debug)]
-pub(crate) struct SaltDb {
-    pub id: i64,
-    pub salt: Uuid,
-}
 #[derive(FromRow)]
 pub(crate) struct PasswordDb {
     pub id: i64,
@@ -25,12 +20,32 @@ pub(crate) struct UsernameDb {
 }
 #[derive(FromRow, Debug)]
 pub(crate) struct UserDb {
-    pub id: Uuid,
-    pub email: i64,
-    pub username: i64,
-    pub password: i64,
-    pub salt: i64,
-    pub created_at: DateTime<LocalTime>,
-    pub firstname: String,
-    pub lastname: String,
+    pub user_id: Uuid,
+    pub email_id: i64,
+    pub username_id: i64,
+    pub password_id: i64,
+    pub created_at: DateTime<Utc>,
+    pub last_login_id: i64,
+    pub is_admin: bool,
+}
+#[derive(FromRow, Debug)]
+pub(crate) struct IpDb {
+    id: i64,
+    ip: String,
+}
+#[derive(Debug, FromRow)]
+struct BearerDb {
+    id: i64,
+    bearer: String,
+}
+#[derive(Debug, FromRow)]
+struct RefreshDb {
+    id: i64,
+    refresh: String,
+}
+#[derive(Debug, FromRow)]
+struct TokensDb {
+    id: i64,
+    bearer: i64,
+    refresh: i64,
 }

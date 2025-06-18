@@ -17,7 +17,6 @@ pub struct Message {
 pub(crate) enum MessageContent {
     String(String),
     File(Vec<u8>),
-    Photo(Vec<u8>),
 }
 
 impl Handler<Message, ()> for ChatEngine {

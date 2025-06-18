@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO valid.users ( email_id, username_id, password_id) VALUES ($1, $2, $3) RETURNING *;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "email_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "username_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "password_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_login_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "is_admin",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6a9fa6df68f8ab4689371124ace4679c51b30db4d77d58b9ccf83d0819aa7141"
+}

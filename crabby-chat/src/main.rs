@@ -172,7 +172,6 @@ impl Engine for ChatEngine {
 }
 #[derive(Debug, Clone)]
 struct User {
-    name: String,
     email: String,
     password: String,
 }
