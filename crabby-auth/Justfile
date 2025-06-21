@@ -1,6 +1,6 @@
 db-up:
     export DATABASE_URL="postgres://root@localhost:26257/?sslmode=disable"
-    sudo docker compose up
+    sudo docker compose up -d
 db-reset:
     sudo docker exec -it crdb cockroach sql --url "postgres://root@localhost:26257/?sslmode=disable" --execute="DROP SCHEMA valid CASCADE;"
     sudo docker exec -it crdb cockroach sql --url "postgres://root@localhost:26257/?sslmode=disable" --execute="DROP TABLE _sqlx_migrations CASCADE;"

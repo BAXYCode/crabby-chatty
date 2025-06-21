@@ -1,7 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Duration, TimeDelta, Utc};
+use chrono::{TimeDelta, Utc};
 use pasetors::{
-    claims::{self, Claims, ClaimsValidationRules},
+    claims::{Claims, ClaimsValidationRules},
     keys::SymmetricKey,
     local,
     token::{TrustedToken, UntrustedToken},
@@ -16,6 +16,15 @@ pub(crate) struct RefreshTokenWithVersion {
 pub(crate) struct UnverifiedWithKey<T> {
     token: T,
     key: SymmetricKey<V4>,
+}
+pub(crate) struct UserTokens {
+    pub(crate) refresh: String,
+    pub(crate) bearer: String,
+}
+impl UserTokens {
+    pub(crate) fn new(bearer: String, refresh: String) -> Self {
+        Self { refresh, bearer }
+    }
 }
 //FIX: better error handling is required
 pub(super) fn bearer(
@@ -33,17 +42,17 @@ pub(super) fn bearer(
     claims
         .expiration(expiry.to_rfc3339().as_str())
         .expect("parsing issue expiry");
-    claims.issuer("Baxy");
-    claims.add_additional("username", username);
-    claims.add_additional("id", id);
-    claims.add_additional("admin", admin);
+    let _ = claims.issuer("Baxy");
+    let _ = claims.add_additional("username", username);
+    let _ = claims.add_additional("id", id);
+    let _ = claims.add_additional("admin", admin);
 
     let token = local::encrypt(key, &claims, None, None).expect("encode paseto");
 
     Ok(token)
 }
 
-pub(crate) fn refresh(key: &SymmetricKey<V4>, version: &str) -> Result<String, Status> {
+pub(crate) fn refresh(key: &SymmetricKey<V4>, version: usize) -> Result<String, Status> {
     //Set refresh token to expire in 14 days
     let delta = TimeDelta::days(14);
     //unwrap is safe here as it's unlikely that this program will be running when time reaches
@@ -51,15 +60,15 @@ pub(crate) fn refresh(key: &SymmetricKey<V4>, version: &str) -> Result<String, S
     let expiry = Utc::now() + delta;
     let mut claims = Claims::new().unwrap();
     claims.expiration(expiry.to_rfc3339().as_str()).unwrap();
-    claims.add_additional("version", version);
-    claims.issuer("Baxy");
+    let _ = claims.add_additional("version", version);
+    let _ = claims.issuer("Baxy");
 
     let token = local::encrypt(key, &claims, None, None).expect("refresh paseto");
     Ok(token)
 }
 //Check if token is expired
-pub(crate) fn expired(token: String, key: &SymmetricKey<V4>) -> Result<bool, Status> {
-    let maybe_valid = validate_token(token, key);
+pub(crate) fn expired<T: Token>(unverified: &UnverifiedWithKey<T>) -> Result<bool, Status> {
+    let maybe_valid = validate_token(unverified);
     if let Err(err) = maybe_valid {
         match err {
             pasetors::errors::Error::ClaimValidation(
@@ -71,26 +80,35 @@ pub(crate) fn expired(token: String, key: &SymmetricKey<V4>) -> Result<bool, Sta
 
     Ok(false)
 }
-pub(crate) fn validate_refresh(
-    token: RefreshTokenWithVersion,
-    key: &SymmetricKey<V4>,
+pub(crate) fn validate_refresh<T: Token>(
+    unverified: &UnverifiedWithKey<T>,
+    version: usize,
 ) -> Result<(), Status> {
-    let trusted = validate_token(token.token, key).map_err(|err| Status::aborted("failed"))?;
+    let trusted = validate_token(unverified).map_err(|_| Status::aborted("failed"))?;
     let claims = trusted.payload_claims().unwrap();
-    let version = claims.get_claim("version").unwrap();
-    Ok(())
+    //FIX: clean this up
+    if let Some(claimed_version) = claims.get_claim("version") {
+        if let Some(claimed_version) = claimed_version.as_str() {
+            if claimed_version
+                .parse::<usize>()
+                .is_ok_and(|version_in_claim| version_in_claim == version)
+            {
+                return Ok(());
+            }
+        }
+    }
+    Err(Status::invalid_argument("invalid token"))
 }
 
-fn validate_token(
-    token: String,
-    key: &SymmetricKey<V4>,
+fn validate_token<T: Token>(
+    unverified: &UnverifiedWithKey<T>,
 ) -> Result<TrustedToken, pasetors::errors::Error> {
     let mut validation_rules = ClaimsValidationRules::new();
     validation_rules.disable_valid_at();
     validation_rules.validate_issuer_with("Baxy");
-    let untrusted = UntrustedToken::<Local, V4>::try_from(&token).unwrap();
+    let untrusted = UntrustedToken::<Local, V4>::try_from(&unverified.token()).unwrap();
     Ok(local::decrypt(
-        key,
+        &unverified.key,
         &untrusted,
         &validation_rules,
         None,
@@ -98,6 +116,16 @@ fn validate_token(
     )?)
 }
 
-trait Token {
-    fn token() -> String;
+pub(crate) trait Token {
+    fn token(&self) -> String;
+}
+impl Token for RefreshTokenWithVersion {
+    fn token(&self) -> String {
+        self.token.clone()
+    }
+}
+impl<T: Token> Token for UnverifiedWithKey<T> {
+    fn token(&self) -> String {
+        self.token.token()
+    }
 }
