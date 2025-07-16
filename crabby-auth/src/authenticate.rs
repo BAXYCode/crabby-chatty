@@ -1,16 +1,21 @@
 #![allow(unused_imports, unused_variables, dead_code)]
 use crate::{
-    model::{BearerRow, RefreshRow, TokensRow},
+    model::{BearerRow, EmailRow, PasswordRow, RefreshRow, TokensRow, UserRow, UsernameRow},
     token::{self, UserTokens},
     ARGON2,
 };
 use anyhow::{Error, Result as AnyResult};
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{
+        self, rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+    },
     Argon2,
 };
-use auth::authenticate_server::{Authenticate, AuthenticateServer};
 use auth::register_response::Response;
+use auth::{
+    authenticate_server::{Authenticate, AuthenticateServer},
+    LoginSuccess,
+};
 use auth::{
     AuthRequest, AuthResponse, LoginRequest, LoginResponse, RefreshRequest, RefreshResponse,
     RegisterRequest, RegisterResponse, RegisterSuccess,
@@ -28,8 +33,6 @@ use tonic::{async_trait, Code};
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
 use tracing_subscriber::fmt::format;
 use uuid::{timestamp, Timestamp, Uuid};
-
-use crate::model::{EmailRow, PasswordRow, UserRow, UsernameRow};
 
 use self::auth::login_response::Login;
 pub mod auth {
@@ -86,8 +89,29 @@ impl Authenticate for Authenticator {
         &self,
         request: Request<LoginRequest>,
     ) -> Result<TonicResponse<LoginResponse>, Status> {
+        let metadata = request.metadata();
         let creds = request.into_inner();
-        todo!()
+        let user = self
+            .get_user_from_username(&creds.username)
+            .await
+            .map_err(|err| Status::unauthenticated("unauthenticated request"))?;
+        let hash = self.get_password_from_id(user.password_id).await?;
+        let password_hash = PasswordHash::new(&hash.password).expect("argon2 type from string");
+        match ARGON2.verify_password(creds.password.as_bytes(), &password_hash) {
+            Ok(_) => {
+                let refresh_row = self.get_refresh_token_from_user_id(&user.user_id).await?;
+                let login_success = LoginSuccess {
+                    user_id: user.user_id.hyphenated().to_string(),
+                    username: creds.username.to_owned(),
+                    refresh: refresh_row.refresh,
+                };
+                let response = Login::LoginSuccess(login_success);
+                return Ok(TonicResponse::new(LoginResponse {
+                    login: Some(response),
+                }));
+            }
+            _ => return Err(Status::unauthenticated("Could not authenticate")),
+        }
     }
     async fn refresh(
         &self,
@@ -181,7 +205,7 @@ impl Authenticator {
         }
         Ok(())
     }
-    pub(crate) fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         let super_secret_key = var("SUPER_SECRET_KEY").expect("Set super secret key");
         let paseto_key = SymmetricKey::<V4>::from(super_secret_key.as_bytes()).unwrap();
         Self {
@@ -269,14 +293,14 @@ impl Authenticator {
 
     async fn insert_tokens(&self, tokens: &UserTokens, user_id: &Uuid) -> AnyResult<()> {
         let transaction = self.db.begin().await?;
-        let bearer: BearerRow = query_as!(
-            BearerRow,
-            "INSERT INTO valid.bearer (bearer) VALUES ($1) RETURNING *;",
-            tokens.bearer
-        )
-        .fetch_one(&self.db)
-        .await
-        .map_err(|err| Error::new(err).context("transaction issue"))?;
+        // let bearer: BearerRow = query_as!(
+        //     BearerRow,
+        //     "INSERT INTO valid.bearer (bearer) VALUES ($1) RETURNING *;",
+        //     tokens.bearer
+        // )
+        // .fetch_one(&self.db)
+        // .await
+        // .map_err(|err| Error::new(err).context("transaction issue"))?;
         let refresh: RefreshRow = query_as!(
             RefreshRow,
             "INSERT INTO valid.refresh (refresh) VALUES ($1) RETURNING *;",
@@ -286,9 +310,8 @@ impl Authenticator {
         .await
         .map_err(|err| Error::new(err).context("transaction issue"))?;
         let _ = query!(
-            "INSERT INTO valid.tokens (user_id,bearer_id, refresh_id) VALUES ($1, $2, $3) ;",
+            "INSERT INTO valid.tokens (user_id, refresh_id) VALUES ($1, $2) ;",
             user_id,
-            bearer.id,
             refresh.id
         )
         .execute(&self.db)
@@ -300,6 +323,10 @@ impl Authenticator {
             .await
             .map_err(|err| Error::new(err).context("transaction issue"))?;
         Ok(())
+    }
+    async fn get_refresh_token_from_user_id(&self, id: &Uuid) -> Result<RefreshRow, Status> {
+        let refresh_token = query_as!(RefreshRow,"SELECT id, refresh, version  from valid.tokens INNER JOIN valid.refresh ON valid.tokens.refresh_id=valid.refresh.id WHERE user_id=$1 ; ", id).fetch_one(&self.db).await.map_err(|err|Status::unavailable("Refresh token not found"))?;
+        Ok(refresh_token)
     }
 }
 

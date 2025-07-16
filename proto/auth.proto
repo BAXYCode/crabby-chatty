@@ -35,13 +35,13 @@ message LoginRequest {
   string password = 2;
 }
 message LoginSuccess {
-  string bearer = 1;
-  string refresh = 2;
-  string user_data=3;
+  string refresh = 1;
+  string username=2;
+  string user_id =3;
 }
 message LoginResponse {
   oneof Login {
-    LoginSuccess tokens = 1;
+    LoginSuccess login_success = 1;
     LoginError error = 2;
   }
 }
