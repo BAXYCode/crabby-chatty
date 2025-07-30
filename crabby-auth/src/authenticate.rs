@@ -1,7 +1,9 @@
 #![allow(unused_imports, unused_variables, dead_code)]
 use crate::{
     model::{BearerRow, EmailRow, PasswordRow, RefreshRow, TokensRow, UserRow, UsernameRow},
-    token::{self, UserTokens},
+    token::{
+        self, refresh, validate_refresh, UnverifiedRefreshToken, UnverifiedWithKey, UserTokens,
+    },
     ARGON2,
 };
 use anyhow::{Error, Result as AnyResult};
@@ -11,14 +13,10 @@ use argon2::{
     },
     Argon2,
 };
-use auth::register_response::Response;
+use auth::authenticate_server::{Authenticate, AuthenticateServer};
 use auth::{
-    authenticate_server::{Authenticate, AuthenticateServer},
-    LoginSuccess,
-};
-use auth::{
-    AuthRequest, AuthResponse, LoginRequest, LoginResponse, RefreshRequest, RefreshResponse,
-    RegisterRequest, RegisterResponse, RegisterSuccess,
+    LoginRequest, LoginResponse, LoginSuccess, PublicKeyRequest, PublicKeyResponse, RefreshRequest,
+    RefreshResponse, RegisterRequest, RegisterResponse, RegisterSuccess,
 };
 use chrono::Utc;
 use core::str;
@@ -28,13 +26,12 @@ use pasetors::{keys::SymmetricKey, version4::V4};
 use sqlx::prelude::FromRow;
 use sqlx::types::chrono::{DateTime, Local as LocalTime};
 use sqlx::{query, query_as, Acquire, PgPool, Postgres};
-use std::sync::LazyLock;
+use std::{str::FromStr, sync::LazyLock};
 use tonic::{async_trait, Code};
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
 use tracing_subscriber::fmt::format;
 use uuid::{timestamp, Timestamp, Uuid};
 
-use self::auth::login_response::Login;
 pub mod auth {
     tonic::include_proto!("authentication");
 }
@@ -75,60 +72,48 @@ impl Authenticate for Authenticator {
             return Err(Status::cancelled(err));
         }
 
-        let response = Response::Response(RegisterSuccess {
+        let response = RegisterSuccess {
             bearer: tokens.bearer,
             refresh: tokens.refresh,
             username: user.username,
             user_id: user.id.hyphenated().to_string(),
-        });
+        };
         let response = Some(response);
         let register_response = RegisterResponse { response };
         Ok(TonicResponse::new(register_response))
     }
+
     async fn login(
         &self,
         request: Request<LoginRequest>,
     ) -> Result<TonicResponse<LoginResponse>, Status> {
-        let metadata = request.metadata();
-        let creds = request.into_inner();
-        let user = self
-            .get_user_from_username(&creds.username)
-            .await
-            .map_err(|err| Status::unauthenticated("unauthenticated request"))?;
-        let hash = self.get_password_from_id(user.password_id).await?;
-        let password_hash = PasswordHash::new(&hash.password).expect("argon2 type from string");
-        match ARGON2.verify_password(creds.password.as_bytes(), &password_hash) {
-            Ok(_) => {
-                let refresh_row = self.get_refresh_token_from_user_id(&user.user_id).await?;
-                let login_success = LoginSuccess {
-                    user_id: user.user_id.hyphenated().to_string(),
-                    username: creds.username.to_owned(),
-                    refresh: refresh_row.refresh,
-                };
-                let response = Login::LoginSuccess(login_success);
-                return Ok(TonicResponse::new(LoginResponse {
-                    login: Some(response),
-                }));
-            }
-            _ => return Err(Status::unauthenticated("Could not authenticate")),
-        }
+        self.login(request).await
     }
+
     async fn refresh(
         &self,
         refresh: Request<RefreshRequest>,
     ) -> Result<TonicResponse<RefreshResponse>, Status> {
-        todo!();
-    }
-    async fn authenticate(
-        &self,
-        authenticate: Request<AuthRequest>,
-    ) -> Result<TonicResponse<AuthResponse>, Status> {
-        todo!();
+        let metadata = refresh.metadata();
+        let creds = refresh.into_inner();
+
+        let user_id =
+            Uuid::from_str(&creds.user_id).map_err(|err| Status::internal("internal error"))?;
+        let refresh_row = self.get_refresh_token_from_user_id(&user_id).await?;
+        let unverified_refresh_token = UnverifiedRefreshToken::new(creds.refresh);
+        let unverified = UnverifiedWithKey::new(unverified_refresh_token, self.as_ref().clone());
+
+        validate_refresh(&unverified, refresh_row.version)
+            .map_err(|err| Status::unauthenticated("Invalid token"))?;
+
+        let new_refresh = token::refresh(self.as_ref(), refresh_row.id + 1);
+        // let new_bearer = token::bearer(username, id, admin, key);
+        todo!()
     }
 }
 
 impl Authenticator {
-    async fn get_email_from_id(&self, id: i64) -> Result<EmailRow, Status> {
+    async fn email_from_id(&self, id: i64) -> Result<EmailRow, Status> {
         let email_row = query_as!(
             EmailRow,
             "select id, email from valid.email where id=($1);",
@@ -142,13 +127,15 @@ impl Authenticator {
         })?;
         Ok(email_row)
     }
-    async fn get_user_from_username(&self, username: &str) -> Result<UserRow, Status> {
+
+    async fn user_from_username(&self, username: &str) -> Result<UserRow, Status> {
         let user = self
-            .get_user_row_from_username_id(self.get_username_row_from_username(username).await?.id)
+            .user_row_from_username_id(self.username_row_from_username(username).await?.id)
             .await?;
         Ok(user)
     }
-    async fn get_username_row_from_username(&self, username: &str) -> Result<UsernameRow, Status> {
+
+    async fn username_row_from_username(&self, username: &str) -> Result<UsernameRow, Status> {
         let username_row: UsernameRow = query_as!(
             UsernameRow,
             "select id, username from valid.username where username=($1);",
@@ -162,7 +149,8 @@ impl Authenticator {
         })?;
         Ok(username_row)
     }
-    async fn get_user_row_from_username_id(&self, id: i64) -> Result<UserRow, Status> {
+
+    async fn user_row_from_username_id(&self, id: i64) -> Result<UserRow, Status> {
         let user = query_as!(
             UserRow,
            r#"select user_id, email_id, username_id, password_id, created_at as "created_at: DateTime<Utc>", last_login_id, is_admin  from valid.users where username_id=($1)"#,
@@ -176,7 +164,8 @@ impl Authenticator {
         })?;
         Ok(user)
     }
-    async fn get_password_from_id(&self, id: i64) -> Result<PasswordRow, Status> {
+
+    async fn password_from_id(&self, id: i64) -> Result<PasswordRow, Status> {
         let password = query_as!(
             PasswordRow,
             "select * from valid.password where id=($1)",
@@ -190,6 +179,7 @@ impl Authenticator {
         })?;
         Ok(password)
     }
+
     async fn check_username(&self, username: &str) -> Result<(), Status> {
         // FIX: error handling
         let con = self.db.acquire().await.unwrap();
@@ -205,6 +195,7 @@ impl Authenticator {
         }
         Ok(())
     }
+
     pub fn new(pool: PgPool) -> Self {
         let super_secret_key = var("SUPER_SECRET_KEY").expect("Set super secret key");
         let paseto_key = SymmetricKey::<V4>::from(super_secret_key.as_bytes()).unwrap();
@@ -214,13 +205,15 @@ impl Authenticator {
                 .expect("Paseto symmetric key"),
         }
     }
-    fn generate_tokens(&self, username: &str, user_id: &Uuid) -> AnyResult<UserTokens, Status> {
+
+    fn generate_tokens(&self, username: &str, user_id: &Uuid) -> Result<UserTokens, Status> {
         let mut buffer = Uuid::encode_buffer();
         let id = user_id.as_hyphenated().encode_lower(&mut buffer);
         let bearer = token::bearer(username, id, false, self.as_ref())?;
         let refresh = token::refresh(self.as_ref(), 1)?;
         Ok(UserTokens::new(bearer, refresh))
     }
+
     async fn email_available(&self, email: &str) -> bool {
         let email: Result<EmailRow, sqlx::Error> =
             query_as(format!("SELECT * FROM valid.email WHERE email = {}", email).as_str())
@@ -231,6 +224,7 @@ impl Authenticator {
         }
         false
     }
+
     async fn hash_password(pwd: &str) -> Result<String, Status> {
         let salt = &SaltString::generate(&mut OsRng);
         let hash = ARGON2.hash_password(pwd.as_bytes(), salt);
@@ -240,6 +234,7 @@ impl Authenticator {
             Err(Status::invalid_argument("wrong password or username"))
         }
     }
+
     // FIX: unsafe error handling, exposing internal schema
     async fn register(&self, req: Request<RegisterRequest>) -> AnyResult<User> {
         let creds = req.into_inner();
@@ -289,6 +284,34 @@ impl Authenticator {
             id: user.user_id,
             username: username.username,
         })
+    }
+
+    async fn login(
+        &self,
+        request: Request<LoginRequest>,
+    ) -> Result<TonicResponse<LoginResponse>, Status> {
+        let metadata = request.metadata();
+        let creds = request.into_inner();
+        let user = self
+            .user_from_username(&creds.username)
+            .await
+            .map_err(|err| Status::unauthenticated("unauthenticated request"))?;
+        let hash = self.password_from_id(user.password_id).await?;
+        let password_hash = PasswordHash::new(&hash.password).expect("argon2 type from string");
+        match ARGON2.verify_password(creds.password.as_bytes(), &password_hash) {
+            Ok(_) => {
+                let refresh_row = self.get_refresh_token_from_user_id(&user.user_id).await?;
+                let login_success = LoginSuccess {
+                    user_id: user.user_id.hyphenated().to_string(),
+                    username: creds.username.to_owned(),
+                    refresh: refresh_row.refresh,
+                };
+                Ok(TonicResponse::new(LoginResponse {
+                    login_success: Some(login_success),
+                }))
+            }
+            _ => Err(Status::unauthenticated("Could not authenticate")),
+        }
     }
 
     async fn insert_tokens(&self, tokens: &UserTokens, user_id: &Uuid) -> AnyResult<()> {

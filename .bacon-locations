@@ -1,0 +1,106 @@
+warning|:|crabby-infra/src/bin/init_db.rs|:|2|:|2|:|14|:|28|:|unused import: `BackoffBuilder`|:|[0m[1m[33mwarning[0m[0m[1m: unused import: `BackoffBuilder`[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:2:14[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m2[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0muse backon::{BackoffBuilder, BlockingRetryable, ExponentialBuilder};[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m              [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_imports)]` on by default[0m
+
+|:|none
+warning|:|crabby-infra/src/bin/init_db.rs|:|42|:|42|:|15|:|19|:|unused variable: `init`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `init`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:42:15[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m42[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    if let Ok(init) = init {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_init`[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|42|:|42|:|15|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_init
+warning|:|crabby-infra/src/bin/init_db.rs|:|73|:|73|:|17|:|19|:|unused variable: `db`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `db`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:73:17[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m73[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            let db = std::process::Command::new("/cockroach")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_db`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|73|:|73|:|17|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_db
+warning|:|crabby-infra/src/bin/init_db.rs|:|84|:|84|:|17|:|19|:|unused variable: `db`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `db`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:84:17[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m84[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            let db = std::process::Command::new("/cockroach")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_db`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|84|:|84|:|17|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_db
+warning|:|crabby-infra/src/bin/init_db.rs|:|2|:|2|:|14|:|28|:|unused import: `BackoffBuilder`|:|[0m[1m[33mwarning[0m[0m[1m: unused import: `BackoffBuilder`[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:2:14[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m2[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0muse backon::{BackoffBuilder, BlockingRetryable, ExponentialBuilder};[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m              [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_imports)]` on by default[0m
+
+|:|none
+warning|:|crabby-infra/src/bin/init_db.rs|:|42|:|42|:|15|:|19|:|unused variable: `init`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `init`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:42:15[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m42[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    if let Ok(init) = init {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_init`[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|42|:|42|:|15|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_init
+warning|:|crabby-infra/src/bin/init_db.rs|:|73|:|73|:|17|:|19|:|unused variable: `db`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `db`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:73:17[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m73[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            let db = std::process::Command::new("/cockroach")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_db`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|73|:|73|:|17|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_db
+warning|:|crabby-infra/src/bin/init_db.rs|:|84|:|84|:|17|:|19|:|unused variable: `db`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `db`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/init_db.rs:84:17[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m84[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            let db = std::process::Command::new("/cockroach")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m                 [0m[0m[1m[33m^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_db`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/init_db.rs|:|84|:|84|:|17|:|19|:|if this is intentional, prefix it with an underscore|:|none|:|_db
+warning|:|crabby-infra/src/bin/certs_gen.rs|:|95|:|95|:|9|:|13|:|unused variable: `file`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `file`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/certs_gen.rs:95:9[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m95[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let file = std::process::Command::new("/bin/cat")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_file`[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|crabby-infra/src/bin/certs_gen.rs|:|95|:|95|:|9|:|13|:|if this is intentional, prefix it with an underscore|:|none|:|_file
+warning|:|crabby-infra/src/bin/certs_gen.rs|:|105|:|105|:|9|:|13|:|unused variable: `file`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `file`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/certs_gen.rs:105:9[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m105[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let file = std::process::Command::new("/bin/cat")[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_file`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/certs_gen.rs|:|105|:|105|:|9|:|13|:|if this is intentional, prefix it with an underscore|:|none|:|_file
+warning|:|crabby-infra/src/bin/certs_gen.rs|:|95|:|95|:|9|:|13|:|unused variable: `file`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `file`[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/certs_gen.rs:95:9[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m95[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let file = std::process::Command::new("/bin/cat")[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_file`[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_variables)]` on by default[0m
+
+|:|none
+help|:|crabby-infra/src/bin/certs_gen.rs|:|95|:|95|:|9|:|13|:|if this is intentional, prefix it with an underscore|:|none|:|_file
+warning|:|crabby-infra/src/bin/certs_gen.rs|:|105|:|105|:|9|:|13|:|unused variable: `file`|:|[0m[1m[33mwarning[0m[0m[1m: unused variable: `file`[0m
+[0m   [0m[0m[1m[38;5;12m--> [0m[0mcrabby-infra/src/bin/certs_gen.rs:105:9[0m
+[0m    [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m105[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let file = std::process::Command::new("/bin/cat")[0m
+[0m    [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^[0m[0m [0m[0m[1m[33mhelp: if this is intentional, prefix it with an underscore: `_file`[0m
+
+|:|none
+help|:|crabby-infra/src/bin/certs_gen.rs|:|105|:|105|:|9|:|13|:|if this is intentional, prefix it with an underscore|:|none|:|_file

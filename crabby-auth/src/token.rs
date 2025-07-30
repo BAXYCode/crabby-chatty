@@ -9,13 +9,22 @@ use pasetors::{
     Local,
 };
 use tonic::Status;
-pub(crate) struct RefreshTokenWithVersion {
+pub(crate) struct UnverifiedRefreshToken {
     token: String,
-    version: usize,
+}
+impl UnverifiedRefreshToken {
+    pub fn new(token: String) -> Self {
+        Self { token }
+    }
 }
 pub(crate) struct UnverifiedWithKey<T> {
     token: T,
     key: SymmetricKey<V4>,
+}
+impl<T> UnverifiedWithKey<T> {
+    pub fn new(token: T, key: SymmetricKey<V4>) -> Self {
+        Self { token, key }
+    }
 }
 pub(crate) struct UserTokens {
     pub(crate) refresh: String,
@@ -52,7 +61,7 @@ pub(super) fn bearer(
     Ok(token)
 }
 
-pub(crate) fn refresh(key: &SymmetricKey<V4>, version: usize) -> Result<String, Status> {
+pub(crate) fn refresh(key: &SymmetricKey<V4>, version: i64) -> Result<String, Status> {
     //Set refresh token to expire in 14 days
     let delta = TimeDelta::days(14);
     //unwrap is safe here as it's unlikely that this program will be running when time reaches
@@ -74,7 +83,7 @@ pub(crate) fn expired<T: Token>(unverified: &UnverifiedWithKey<T>) -> Result<boo
             pasetors::errors::Error::ClaimValidation(
                 pasetors::errors::ClaimValidationError::Exp,
             ) => return Ok(true),
-            _ => return Err(Status::unavailable("Internal error")),
+            _ => return Err(Status::deadline_exceeded("Internal error")),
         }
     }
 
@@ -82,22 +91,22 @@ pub(crate) fn expired<T: Token>(unverified: &UnverifiedWithKey<T>) -> Result<boo
 }
 pub(crate) fn validate_refresh<T: Token>(
     unverified: &UnverifiedWithKey<T>,
-    version: usize,
-) -> Result<(), Status> {
-    let trusted = validate_token(unverified).map_err(|_| Status::aborted("failed"))?;
+    version: i64,
+) -> Result<(), pasetors::errors::Error> {
+    let trusted = validate_token(unverified)?;
     let claims = trusted.payload_claims().unwrap();
     //FIX: clean this up
     if let Some(claimed_version) = claims.get_claim("version") {
         if let Some(claimed_version) = claimed_version.as_str() {
             if claimed_version
-                .parse::<usize>()
+                .parse::<i64>()
                 .is_ok_and(|version_in_claim| version_in_claim == version)
             {
                 return Ok(());
             }
         }
     }
-    Err(Status::invalid_argument("invalid token"))
+    Err(pasetors::errors::Error::TokenValidation)
 }
 
 fn validate_token<T: Token>(
@@ -119,7 +128,7 @@ fn validate_token<T: Token>(
 pub(crate) trait Token {
     fn token(&self) -> String;
 }
-impl Token for RefreshTokenWithVersion {
+impl Token for UnverifiedRefreshToken {
     fn token(&self) -> String {
         self.token.clone()
     }
