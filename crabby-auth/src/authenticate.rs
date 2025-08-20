@@ -22,7 +22,10 @@ use chrono::Utc;
 use core::str;
 use dashmap::{DashMap, DashSet};
 use dotenvy::{dotenv, var};
-use pasetors::{keys::SymmetricKey, version4::V4};
+use pasetors::{
+    keys::{AsymmetricKeyPair, Generate, SymmetricKey},
+    version4::V4,
+};
 use sqlx::prelude::FromRow;
 use sqlx::types::chrono::{DateTime, Local as LocalTime};
 use sqlx::{query, query_as, Acquire, PgPool, Postgres};
@@ -43,7 +46,8 @@ struct User {
 }
 pub(crate) struct Authenticator {
     db: PgPool,
-    paseto_key: SymmetricKey<V4>,
+    symmetric_key: SymmetricKey<V4>,
+    asymmetric_kp: AsymmetricKeyPair<V4>,
 }
 
 #[async_trait]
@@ -108,6 +112,12 @@ impl Authenticate for Authenticator {
 
         let new_refresh = token::refresh(self.as_ref(), refresh_row.id + 1);
         // let new_bearer = token::bearer(username, id, admin, key);
+        todo!()
+    }
+    async fn public_key(
+        &self,
+        _: tonic::Request<PublicKeyRequest>,
+    ) -> Result<TonicResponse<PublicKeyResponse>, Status> {
         todo!()
     }
 }
@@ -201,8 +211,9 @@ impl Authenticator {
         let paseto_key = SymmetricKey::<V4>::from(super_secret_key.as_bytes()).unwrap();
         Self {
             db: pool,
-            paseto_key: SymmetricKey::from(super_secret_key.as_bytes())
+            symmetric_key: SymmetricKey::from(super_secret_key.as_bytes())
                 .expect("Paseto symmetric key"),
+            asymmetric_kp: AsymmetricKeyPair::generate().unwrap(),
         }
     }
 
@@ -355,6 +366,6 @@ impl Authenticator {
 
 impl AsRef<SymmetricKey<V4>> for Authenticator {
     fn as_ref(&self) -> &SymmetricKey<V4> {
-        &self.paseto_key
+        &self.symmetric_key
     }
 }

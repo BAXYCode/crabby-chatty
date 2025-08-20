@@ -1,5 +1,3 @@
--- Add down migration script here
-
 DROP TABLE IF EXISTS valid.users CASCADE; 
 DROP TABLE IF EXISTS valid.email CASCADE; 
 DROP TABLE IF EXISTS valid.password CASCADE; 

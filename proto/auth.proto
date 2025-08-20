@@ -50,3 +50,9 @@ message RefreshResponse{
   optional string bearer = 2;
 }
 
+message PublicKeyRequest{
+string req =1;  
+}
+message PublicKeyResponse{
+bool valid = 1;
+}
