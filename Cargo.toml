@@ -1,5 +1,12 @@
 [workspace]
 
-members = ["crabby-core", "crabby-chat", "crabby-core", "crabby-infra", "crabby-auth", "tester"]
+members = [
+    "crabby-core",
+    "crabby-chat",
+    "crabby-core",
+    "crabby-infra",
+    "crabby-auth",
+    "tester",
+]
 
 resolver = "2"

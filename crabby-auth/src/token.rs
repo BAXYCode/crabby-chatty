@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{TimeDelta, Utc};
 use pasetors::{
     claims::{Claims, ClaimsValidationRules},
-    keys::SymmetricKey,
+    keys::{AsymmetricKeyPair, SymmetricKey},
     local,
     token::{TrustedToken, UntrustedToken},
     version4::V4,
@@ -40,7 +40,7 @@ pub(super) fn bearer(
     username: &str,
     id: &str,
     admin: bool,
-    key: &SymmetricKey<V4>,
+    key: &AsymmetricKeyPair<V4>,
 ) -> Result<String, Status> {
     //Set bearer token to expire in 15 minutes
     let delta = TimeDelta::minutes(15);

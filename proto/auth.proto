@@ -54,5 +54,5 @@ message PublicKeyRequest{
 string req =1;  
 }
 message PublicKeyResponse{
-bool valid = 1;
+string paserk = 1;
 }

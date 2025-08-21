@@ -1,8 +1,8 @@
 db-up:
     sudo docker compose up -d
 db-reset:
-    sudo docker exec -it crdb cockroach sql --url "postgres://root@localhost:26257/?sslmode=disable" --execute="DROP SCHEMA valid CASCADE;"
-    sudo docker exec -it crdb cockroach sql --url "postgres://root@localhost:26257/?sslmode=disable" --execute="DROP TABLE _sqlx_migrations CASCADE;"
+    sudo docker exec -it crdb cockroach sql --url "postgres://auth_login@localhost:26257/crabby_authdb?sslmode=disable" --execute="DROP SCHEMA valid CASCADE;"
+    sudo docker exec -it crdb cockroach sql --url "postgres://auth_login@localhost:26257/crabby_authdb?sslmode=disable" --execute="DROP TABLE _sqlx_migrations CASCADE;"
     cd db && sqlx migrate run
     cargo sqlx prepare
 

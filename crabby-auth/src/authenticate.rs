@@ -24,6 +24,7 @@ use dashmap::{DashMap, DashSet};
 use dotenvy::{dotenv, var};
 use pasetors::{
     keys::{AsymmetricKeyPair, Generate, SymmetricKey},
+    paserk::{FormatAsPaserk, Id},
     version4::V4,
 };
 use sqlx::prelude::FromRow;
@@ -114,11 +115,31 @@ impl Authenticate for Authenticator {
         // let new_bearer = token::bearer(username, id, admin, key);
         todo!()
     }
+    //INFO: this function needs to be changed in the future once key rotation has been implemented
+    //to implement appropriate database queries related to making sure the paserk ID is a valid one.
     async fn public_key(
         &self,
-        _: tonic::Request<PublicKeyRequest>,
+        key: tonic::Request<PublicKeyRequest>,
     ) -> Result<TonicResponse<PublicKeyResponse>, Status> {
-        todo!()
+        let request_info = key.into_inner().req;
+
+        let public_key = &self.asymmetric_kp.public;
+        let paserk_id = Id::from(public_key);
+        let attempted_id = Id::try_from(request_info.as_str())
+            .map_err(|err| Status::permission_denied("Not signed by crabby-chatty"))?;
+
+        //INFO: This is just a decoy check to say that it was checked
+        if paserk_id == attempted_id {
+            let mut paserk_response = String::new();
+            public_key
+                .fmt(&mut paserk_response)
+                .map_err(|err| Status::internal("Internal failure"))?;
+            return Ok(TonicResponse::new(PublicKeyResponse {
+                paserk: paserk_response,
+            }));
+        } else {
+            return Err(Status::unauthenticated("not a valid PID"));
+        }
     }
 }
 
@@ -221,7 +242,7 @@ impl Authenticator {
         let mut buffer = Uuid::encode_buffer();
         let id = user_id.as_hyphenated().encode_lower(&mut buffer);
         let bearer = token::bearer(username, id, false, self.as_ref())?;
-        let refresh = token::refresh(self.as_ref(), 1)?;
+        let refresh  token::refresh(self.as_ref(), 1)?;
         Ok(UserTokens::new(bearer, refresh))
     }
 
@@ -327,14 +348,6 @@ impl Authenticator {
 
     async fn insert_tokens(&self, tokens: &UserTokens, user_id: &Uuid) -> AnyResult<()> {
         let transaction = self.db.begin().await?;
-        // let bearer: BearerRow = query_as!(
-        //     BearerRow,
-        //     "INSERT INTO valid.bearer (bearer) VALUES ($1) RETURNING *;",
-        //     tokens.bearer
-        // )
-        // .fetch_one(&self.db)
-        // .await
-        // .map_err(|err| Error::new(err).context("transaction issue"))?;
         let refresh: RefreshRow = query_as!(
             RefreshRow,
             "INSERT INTO valid.refresh (refresh) VALUES ($1) RETURNING *;",
