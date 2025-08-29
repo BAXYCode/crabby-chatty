@@ -3,61 +3,58 @@ http:
   #serversTransports are used to describe how I would like to communicate with the backend services
   serversTransports:
     cockroach_https:
-      # tls: 
+      # tls:
       insecureSkipVerify: false
-  #The root Certificate authority "database-certs.crt" is needed so traefik can complete the tls handshake with backend service successfully
+      #The root Certificate authority "database-certs.crt" is needed so traefik can complete the tls handshake with backend service successfully
       rootCAs: /db/database-certs.crt
   # routers:
   #   roach_https:
   #     entryPoints:
   #       - roach_https
   #     tls: {}
-  #     rule: Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`) 
+  #     rule: Host(`node`) || Host(`traefik`) || HostRegexp(`^.+\\.crabby-userdb\\.io$`)
   #     service: db_https
-# Http related services  
-  # services: 
-  #   db_https:
-  #     loadBalancer:
-  #       healthCheck:
-  #         scheme: https 
-  #         path: /api/v2/health/?ready=1 
-  #         interval: 60s 
-  #         timeout: 5s 
-  #         method: GET
-  #         status: 200
-  #         followRedirects: true 
-  #       serversTransport: cockroach_https 
-#TCP related configs:
-# tcp:
-# #Backend communication channels:
-#   serversTransports:
-#     cockroach_sql:
-#       tls:
-#         rootCAs: 
-#           - /db/database-certs.crt
-#           # - /db/client.root.ca.crt
-#           # - /db/client.crabby.ca.crt
-#         insecureSkipVerify: false
-        # certificates:
-        #   - certFile: /certs/.cockroach-certs/client.root.crt
-        #     keyFile: /certs/.cockroach-certs/client.root.key
-          # - certFile: /certs/.cockroach-certs/client.crabby.crt
-          #   keyFile: /certs/.cockroach-certs/client.crabby.crt
+# Http related services
+# services:
+#   db_https:
+#     loadBalancer:
+#       healthCheck:
+#         scheme: https
+#         path: /api/v2/health/?ready=1
+#         interval: 60s
+#         timeout: 5s
+#         method: GET
+#         status: 200
+#         followRedirects: true
+#       serversTransport: cockroach_https
+# TCP related configs:
+tcp:
+  #Backend communication channels:
+  serversTransports:
+    cockroach_backend:
+      tls:
+        rootCAs:
+          - /db/database-certs.crt
+          # - /db/client.root.ca.crt
+          # - /db/client.crabby.ca.crt
+        insecureSkipVerify: false
+        certificates:
+          - certFile: /certs/.cockroach-certs/client.root.crt
+            keyFile: /certs/.cockroach-certs/client.root.key
+        # - certFile: /certs/.cockroach-certs/client.crabby.crt
+        #   keyFile: /certs/.cockroach-certs/client.crabby.crt
 #Routers:
-  # routers:
-  #   roach_sql:
-  #     entryPoints:
-  #       - roach_sql 
-  #     tls: 
-  #       passthrough: true
-  #     # serversTransports: cockroach_sql
-  #     service: db_sql
-  #     rule: HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)
-
+# routers:
+#   roach_sql:
+#     entryPoints:
+#       - roach_sql
+#     tls:
+#       passthrough: true
+#     # serversTransports: cockroach_sql
+#     service: db_sql
+#     rule: HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)
 
 #Service definitions:
-
-
 
 # tls:
 #   stores:
@@ -78,6 +75,6 @@ http:
 #       sniStrict: true
 #   rootCAs:
 #     - /certs/.cockroach-certs/ca.crt
-  #   - /certs/.cockroach-certs/node.crt
-  #
+#   - /certs/.cockroach-certs/node.crt
+#
 

@@ -8,7 +8,7 @@ init-insecure: down-insecure && up-insecure
     just comp-init
 
 comp-init:
-    cd /home/benjaminlaine/Documents/projects/crabby-chatty/crabby-auth/custom-images && cargo build --bin init_db --release
+    cd crabby-infra && cargo build --bin init_db --release
     docker build -f docker/auth/init.Dockerfile -t baxydocker/db-init:latest .
 
 up-sec:
@@ -21,7 +21,7 @@ init-secure: down-sec && up-sec
     just  comp-certs
 
 comp-certs:
-    cd /home/benjaminlaine/Documents/projects/crabby-chatty/crabby-auth/custom-images && cargo build --bin certs_gen --release
+    cd crabby-infra && cargo build --bin certs_gen --release
     docker build -f docker/auth/certs_gen.Dockerfile -t baxydocker/certs_gen:latest .
 
 auth:

@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     info!(name:"Environment Variables", "fetching  necessary environment variables");
     let host = env::var("COCKROACH_HOST").expect("No Host provided");
     let port = env::var("COCKROACH_PORT").expect("No port provided");
-    let _user = env::var("COCKROACH_USER").expect("OS user not provided");
+    // let _user = env::var("COCKROACH_USER").expect("OS user not provided");
     // environment variables used by this tool to contact cockroach cluster
 
     info!(name:"Environment Variables", "Connecting to cluster from {} at port number {}", host, port);
@@ -29,9 +29,9 @@ fn main() -> Result<()> {
         env::var("COCKROACH_INSECURE").expect("Specify if cluster will be insecure or not");
     let certs = env::var("COCKROACH_CERTS_DIR");
     // Initialization info to setup db
-    let db_name = env::var("DATABASE_NAME");
-    let db_user = env::var("DATABASE_USER");
-    let db_pass = env::var("DATABASE_PASS");
+    // let db_name = env::var("DATABASE_NAME");
+    // let db_user = env::var("DATABASE_USER");
+    // let db_pass = env::var("DATABASE_PASS");
 
     let healthcheck = env::var("HEALTHCHECK").expect("Healthcheck url is needed");
 
@@ -67,103 +67,103 @@ fn main() -> Result<()> {
     }
 
     wait_ready(healthcheck).expect("failed to get ready");
-    if let Ok(db_name) = db_name.clone() {
-        if insecure.as_str() == "false" {
-            info!(name: "db initialization", "Initializing Database in Secure mode");
-            let db = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    certs_dir.as_str(),
-                    "--execute",
-                    std::format!("CREATE DATABASE IF NOT EXISTS {}", db_name).as_str(),
-                ])
-                .status()
-                .expect("could not create Database");
-        } else {
-            info!(name: "db initialization", "Initializing Database in Insecure mode");
-            let db = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    "--execute",
-                    std::format!("CREATE DATABASE IF NOT EXISTS {}", db_name).as_str(),
-                ])
-                .status()
-                .expect("could not create Database");
-        }
-    } else {
-        warn!("No database name provided, no new database will be made")
-    }
-    if let Ok(username) = db_user {
-        if insecure.as_str() == "false" {
-            let user_create = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    certs_dir.as_str(),
-                    "--execute",
-                    std::format!(
-                        "CREATE USER IF NOT EXISTS {} WITH PASSWORD {}",
-                        username,
-                        db_pass.unwrap_or_else(|_| { "NULL".to_owned() })
-                    )
-                    .as_str(),
-                ])
-                .status()
-                .expect("could not create user");
-
-            info!(name: "User creation", "User creation {:?} in Secure mode", user_create);
-            let privileges = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    certs_dir.as_str(),
-                    "--execute",
-                    std::format!(
-                        "GRANT ALL ON DATABASE {} TO {}",
-                        db_name.expect("no db name"),
-                        username
-                    )
-                    .as_str(),
-                    "--execute",
-                    std::format!("GRANT admin TO {}", username).as_str(),
-                ])
-                .status()
-                .expect("could not grant permissions");
-            info!(name:"permissions and roles", "Granting permissions and roles {:?} in Secure mode",privileges)
-        } else {
-            let user_create = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    "--execute",
-                    std::format!(
-                        "CREATE USER IF NOT EXISTS {} WITH PASSWORD {}",
-                        username,
-                        db_pass.unwrap_or_else(|_| { "NULL".to_owned() })
-                    )
-                    .as_str(),
-                ])
-                .status()
-                .expect("could not create user");
-
-            info!(name: "User creation", "User creation {:?} in Insecure mode", user_create);
-            let privileges = std::process::Command::new("/cockroach")
-                .args([
-                    "sql",
-                    "--execute",
-                    std::format!(
-                        "GRANT ALL ON DATABASE {} TO {}",
-                        db_name.expect("no db name"),
-                        username
-                    )
-                    .as_str(),
-                    "--execute",
-                    std::format!("GRANT admin TO {}", username).as_str(),
-                ])
-                .status()
-                .expect("could not grant permissions");
-            info!(name:"permissions and roles", "Granting permissions and roles {:?} in Insecure mode",privileges)
-        }
-    } else {
-        warn!("No database username provided, no new user will be created and no roles will be granted");
-    }
+    // if let Ok(db_name) = db_name.clone() {
+    //     if insecure.as_str() == "false" {
+    //         info!(name: "db initialization", "Initializing Database in Secure mode");
+    //         let db = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 certs_dir.as_str(),
+    //                 "--execute",
+    //                 std::format!("CREATE DATABASE IF NOT EXISTS {}", db_name).as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not create Database");
+    //     } else {
+    //         info!(name: "db initialization", "Initializing Database in Insecure mode");
+    //         let db = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 "--execute",
+    //                 std::format!("CREATE DATABASE IF NOT EXISTS {}", db_name).as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not create Database");
+    //     }
+    // } else {
+    //     warn!("No database name provided, no new database will be made")
+    // }
+    // if let Ok(username) = db_user {
+    //     if insecure.as_str() == "false" {
+    //         let user_create = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 certs_dir.as_str(),
+    //                 "--execute",
+    //                 std::format!(
+    //                     "CREATE USER IF NOT EXISTS {} WITH PASSWORD {}",
+    //                     username,
+    //                     db_pass.unwrap_or_else(|_| { "NULL".to_owned() })
+    //                 )
+    //                 .as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not create user");
+    //
+    //         info!(name: "User creation", "User creation {:?} in Secure mode", user_create);
+    //         let privileges = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 certs_dir.as_str(),
+    //                 "--execute",
+    //                 std::format!(
+    //                     "GRANT ALL ON DATABASE {} TO {}",
+    //                     db_name.expect("no db name"),
+    //                     username
+    //                 )
+    //                 .as_str(),
+    //                 "--execute",
+    //                 std::format!("GRANT admin TO {}", username).as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not grant permissions");
+    //         info!(name:"permissions and roles", "Granting permissions and roles {:?} in Secure mode",privileges)
+    //     } else {
+    //         let user_create = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 "--execute",
+    //                 std::format!(
+    //                     "CREATE USER IF NOT EXISTS {} WITH PASSWORD {}",
+    //                     username,
+    //                     db_pass.unwrap_or_else(|_| { "NULL".to_owned() })
+    //                 )
+    //                 .as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not create user");
+    //
+    //         info!(name: "User creation", "User creation {:?} in Insecure mode", user_create);
+    //         let privileges = std::process::Command::new("/cockroach")
+    //             .args([
+    //                 "sql",
+    //                 "--execute",
+    //                 std::format!(
+    //                     "GRANT ALL ON DATABASE {} TO {}",
+    //                     db_name.expect("no db name"),
+    //                     username
+    //                 )
+    //                 .as_str(),
+    //                 "--execute",
+    //                 std::format!("GRANT admin TO {}", username).as_str(),
+    //             ])
+    //             .status()
+    //             .expect("could not grant permissions");
+    //         info!(name:"permissions and roles", "Granting permissions and roles {:?} in Insecure mode",privileges)
+    //     }
+    // } else {
+    //     warn!("No database username provided, no new user will be created and no roles will be granted");
+    // }
     Ok(())
 }
 

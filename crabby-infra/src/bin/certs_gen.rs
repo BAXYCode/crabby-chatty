@@ -4,7 +4,6 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<()> {
-    println!("test");
     // tracing
     let _sub: () = tracing_subscriber::registry()
         .with(
@@ -18,15 +17,15 @@ fn main() -> Result<()> {
         .init();
     // environment variables used by cockroach-cli
     info!(name:"Environment Variables", "fetching  necessary environment variables");
-    let username = env::var("CLIENT_USERNAME").expect("No client username provided");
+    let usernames = env::var("CLIENT_USERNAMES").expect("No client username provided");
+    let usernames = usernames.trim().split(" ").collect::<Vec<&str>>();
     let alt_names = env::var("NODE_ALTERNATIVE_NAMES").expect("No alternative names provided");
-    let mut usernames = Vec::new();
-    usernames.push("root");
+    // usernames.push("root");
     let certs_dir = "/.cockroach-certs";
     let ca_key = "/.cockroach-key/ca.key";
-    if username != "root" {
-        usernames.push(username.as_str());
-    }
+    // if username != "root" {
+    //     usernames.push(username.as_str());
+    // }
 
     let alt_names = alt_names.trim().split(" ").collect::<Vec<&str>>();
     println!("alt names: {:?}", alt_names);
@@ -77,14 +76,14 @@ fn main() -> Result<()> {
         .args(args)
         .status()
         .expect("could not generate certificates for node");
-    if Path::new("/lb/database_certs.crt").exists() {
+    if Path::new("/lb/database-certs.crt").exists() {
         let rm = std::process::Command::new("/bin/rm")
             .args(["/lb/database-certs.crt"])
             .status()
             .expect("who cares");
         info!("rm {:?}", rm);
     }
-    let file = std::process::Command::new("/bin/cat")
+    let file = std::process::Command::new("/usr/bin/cat")
         .args(["/.cockroach-certs/node.crt", "/.cockroach-certs/ca.crt"])
         .stdout(std::fs::File::create("/lb/database-certs.crt").unwrap())
         .spawn()
@@ -92,9 +91,10 @@ fn main() -> Result<()> {
         .wait()
         .expect("wait failure");
     info!("concat cert file {:?}", file);
-    let file = std::process::Command::new("/bin/cat")
+    //FIX: WHY AM I CONCATENATING TWICE?
+    let _file = std::process::Command::new("/usr/bin/cat")
         .args([
-            "/.cockroach-certs/client.crabby.crt",
+            "/.cockroach-certs/client.root.crt",
             "/.cockroach-certs/ca.crt",
         ])
         .stdout(std::fs::File::create("/lb/client.root.ca.crt").unwrap())
@@ -102,12 +102,9 @@ fn main() -> Result<()> {
         .expect("spawn failure")
         .wait()
         .expect("wait failure");
-    let file = std::process::Command::new("/bin/cat")
-        .args([
-            "/.cockroach-certs/client.crabby.crt",
-            "/.cockroach-certs/ca.crt",
-        ])
-        .stdout(std::fs::File::create("/lb/client.crabby.ca.crt").unwrap())
+    let _file = std::process::Command::new("/usr/bin/cat")
+        .args(["/.cockroach-certs/node.crt", "/.cockroach-certs/ca.crt"])
+        .stdout(std::fs::File::create("/lb/database-certs.crt").unwrap())
         .spawn()
         .expect("spawn failure")
         .wait()

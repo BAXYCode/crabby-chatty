@@ -1,0 +1,5 @@
+[env]
+_.file = [
+    "../config/utils/init_db/.env.prod",
+    "../config/utils/certs_gen/.env.prod",
+]

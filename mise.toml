@@ -1,2 +1,2 @@
 [env]
-DATABASE_URL = "postgres://root@localhost:26257/?sslmode=disable"
+DATABASE_URL = "postgres://root@localhost:26257/?sslmode=verify-full&sslcert=docker/volumes/certs/client.root.crt&sslkey=docker/volumes/certs/client.root.key&rootcert=docker/volumes/certs/ca.crt"
