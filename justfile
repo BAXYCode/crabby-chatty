@@ -32,3 +32,5 @@ dns_down:
 
 dns_up:
     sudo systemctl start systemd-resolved
+migrate-init:
+    cd init_db && sqlx migrate run --database-url "postgres://root@localhost:36257/?sslmode=verify-full&sslcert=../docker/volumes/certs/client.root.crt&sslkey=../docker/volumes/certs/client.root.key&sslrootcert=../docker/volumes/certs/ca.crt"

@@ -56,6 +56,7 @@ fn main() -> Result<()> {
                 certs_dir,
                 "--ca-key",
                 ca_key,
+                "--also-generate-pkcs8-key",
                 "--overwrite",
             ])
             .status()

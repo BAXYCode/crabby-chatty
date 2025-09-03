@@ -34,14 +34,16 @@ services:
       - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
 
       # Sql command interface
-      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
       - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
       - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
-      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_sql@file"
+      # - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_backend_sql@file"
       #Cockroach commands interface
-      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       - "traefik.tcp.routers.roach_inter.service=db_inter"
       - "traefik.tcp.routers.roach_inter.tls.passthrough=true"
@@ -89,14 +91,16 @@ services:
       - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
 
       # Sql command interface
-      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
       - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
       - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
-      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_backend@file"
+      # - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_backend_sql@file"
       #Cockroach commands interface
-      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       - "traefik.tcp.routers.roach_inter.service=db_inter"
       - "traefik.tcp.routers.roach_inter.tls.passthrough=true"
@@ -144,14 +148,16 @@ services:
       - "traefik.http.services.db_https.loadbalancer.serverstransport=cockroach_https@file"
 
       # Sql command interface
-      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_sql.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_sql.entrypoints=roach_sql"
       - "traefik.tcp.routers.roach_sql.service=db_sql"
       - "traefik.tcp.routers.roach_sql.tls.passthrough=true"
       - "traefik.tcp.services.db_sql.loadbalancer.server.port=36257"
-      - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_sql@file"
+      # - "traefik.tcp.services.db_sql.loadbalancer.serverstransport=cockroach_backend_sql@file"
       #Cockroach commands interface
-      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik`)"
+      - "traefik.tcp.routers.roach_inter.rule=HostSNIRegexp(`^.+\\.crabby-userdb\\.io$ || traefik ||
+        localhost`)"
       - "traefik.tcp.routers.roach_inter.entrypoints=roach_inter"
       - "traefik.tcp.routers.roach_inter.service=db_inter"
       - "traefik.tcp.routers.roach_inter.tls.passthrough=true"

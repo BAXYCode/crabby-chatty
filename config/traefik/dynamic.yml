@@ -2,11 +2,29 @@
 http:
   #serversTransports are used to describe how I would like to communicate with the backend services
   serversTransports:
+    cockroach_backend_sql:
+      insecureSkipVerify: false
+      rootCAs:
+        - /db/database-certs.crt
+        - /db/client.root.ca.crt
+      # tls:
+      #   certificates:
+      #     certFile: /certs/client.root.crt
+      #     keyFIle: /certs/client.root.key
+
+    cockroach_backend:
+      insecureSkipVerify: false
+      rootCAs:
+        - /db/database-certs.crt
+        - /db/client.root.ca.crt
     cockroach_https:
       # tls:
+      #   - certFile: /certs/client.root.crt
+      #   - certKey: /certs/client.root.key
       insecureSkipVerify: false
       #The root Certificate authority "database-certs.crt" is needed so traefik can complete the tls handshake with backend service successfully
       rootCAs: /db/database-certs.crt
+
   # routers:
   #   roach_https:
   #     entryPoints:
@@ -28,21 +46,21 @@ http:
 #         followRedirects: true
 #       serversTransport: cockroach_https
 # TCP related configs:
-tcp:
-  #Backend communication channels:
-  serversTransports:
-    cockroach_backend:
-      tls:
-        rootCAs:
-          - /db/database-certs.crt
-          # - /db/client.root.ca.crt
-          # - /db/client.crabby.ca.crt
-        insecureSkipVerify: false
-        certificates:
-          - certFile: /certs/.cockroach-certs/client.root.crt
-            keyFile: /certs/.cockroach-certs/client.root.key
-        # - certFile: /certs/.cockroach-certs/client.crabby.crt
-        #   keyFile: /certs/.cockroach-certs/client.crabby.crt
+# tcp:
+#   #Backend communication channels:
+#   serversTransports:
+#     cockroach_backend:
+#       tls:
+#         rootCAs:
+#           - /db/database-certs.crt
+#           # - /db/client.root.ca.crt
+#           # - /db/client.crabby.ca.crt
+#         insecureSkipVerify: false
+#         certificates:
+#           - certFile: /certs/.cockroach-certs/client.root.crt
+#             keyFile: /certs/.cockroach-certs/client.root.key
+# - certFile: /certs/.cockroach-certs/client.crabby.crt
+#   keyFile: /certs/.cockroach-certs/client.crabby.crt
 #Routers:
 # routers:
 #   roach_sql:

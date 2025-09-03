@@ -4,9 +4,9 @@ PGHOST = "localhost"
 PGUSER = "crabby"
 PGPASSWORD = "test"
 PGDATABASE = "crabby_userdb"
-DATABASE_URL = "postgresql://auth_login@127.0.0.1:26257/crabby_authdb?sslmode=disable"
+DATABASE_URL = "postgresql://auth_login@127.0.0.1:36257/crabby_authdb?sslmode=disable"
 PGSSLROOTCERT = "../../docker/volumes/certs/ca.crt"
-PGSSLCERT = "../../docker/volumes/certs/client.crabby.crt"
-PGSSLKEY = "../../docker/volumes/certs/client.crabby.key"
+PGSSLCERT = "../../docker/volumes/certs/client.auth_login.crt"
+PGSSLKEY = "../../docker/volumes/certs/client.auth_login.key"
 PGSSLMODE = "VerifyFull"
-PGPORT = 26257
+PGPORT = 36257

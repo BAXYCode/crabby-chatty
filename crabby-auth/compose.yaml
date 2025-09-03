@@ -7,7 +7,7 @@ services:
       start-single-node --cluster-name=example-single-node --logtostderr=WARNING
       --log-file-verbosity=WARNING --insecure
     ports:
-      - "26257:26257"
+      - "36257:36257"
       - "8080:8080"
 
   crdb-init:
@@ -15,7 +15,7 @@ services:
     hostname: crdb-init
     image: timveil/cockroachdb-remote-client:latest
     environment:
-      - COCKROACH_HOST=crdb:26257
+      - COCKROACH_HOST=crdb:36257
       - COCKROACH_INSECURE=true
       - DATABASE_NAME=test
     depends_on:
