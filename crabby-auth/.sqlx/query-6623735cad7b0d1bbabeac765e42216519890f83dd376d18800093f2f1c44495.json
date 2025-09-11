@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO valid.users ( email_id, username_id, password_id) VALUES ($1, $2, $3) RETURNING *;",
+  "query": "WITH username_id AS (SELECT id FROM valid.username WHERE username= ($1) ) SELECT * FROM valid.users WHERE valid.users.username_id = username_id;",
   "describe": {
     "columns": [
       {
@@ -83,9 +83,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
-        "Int8",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
@@ -98,5 +96,5 @@
       false
     ]
   },
-  "hash": "6a9fa6df68f8ab4689371124ace4679c51b30db4d77d58b9ccf83d0819aa7141"
+  "hash": "6623735cad7b0d1bbabeac765e42216519890f83dd376d18800093f2f1c44495"
 }

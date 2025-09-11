@@ -12,7 +12,7 @@ prost = "*"
 tracing = "0.1.41"
 tracing-opentelemetry = "0.31.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
 tonic = "*"
 uuid = { version = "1.17.0", features = [
     "fast-rng",
@@ -21,12 +21,13 @@ uuid = { version = "1.17.0", features = [
     "serde",
     "macro-diagnostics",
 ] }
-sqlx = { version = "0.8.6", features = [
+sqlx = { git = "https://github.com/launchbadge/sqlx.git", features = [
     "postgres",
     "migrate",
     "runtime-tokio",
     "uuid",
     "chrono",
+    "sqlx-toml",
 ] }
 serde = { version = "1.0.219", features = ["derive"] }
 anyhow = "1.0.98"

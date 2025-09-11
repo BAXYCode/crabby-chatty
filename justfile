@@ -1,3 +1,6 @@
+default:
+    just --list
+
 up-insecure:
     cd docker/auth && docker compose -f docker-compose.insecure.yaml up --remove-orphans
 
