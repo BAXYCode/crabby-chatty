@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO valid.refresh_metadata ( userId, id, token_hash, iat, nbf, exp ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "userid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "token_hash",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "iat",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "nbf",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "exp",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a570f4a533d6f23c2638337764ba70015674ce6dff0bb0f3cf40b577763c7be2"
+}

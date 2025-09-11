@@ -1,8 +1,8 @@
+use crate::token::UserTokens;
+use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::types::chrono::{DateTime, Utc};
 use uuid::Uuid;
-
-use crate::token::UserTokens;
 #[derive(FromRow, Debug)]
 struct RowId(i64);
 #[derive(FromRow)]
@@ -46,6 +46,19 @@ pub(crate) struct RefreshRow {
     pub refresh: String,
     pub version: i64,
 }
+#[derive(Serialize, Deserialize, FromRow)]
+pub(crate) struct RefreshMetadataRow {
+    #[sqlx(rename = "userId")]
+    /*rust convention would expect the field to be named as written under, but sqlx macros won't
+    wok with `FromRow`*/
+    //pub userid: Uuid,
+    pub userid: Uuid,
+    pub id: Uuid,
+    pub token_hash: String,
+    pub iat: DateTime<Utc>,
+    pub nbf: DateTime<Utc>,
+    pub exp: DateTime<Utc>,
+}
 #[derive(Debug, FromRow)]
 pub(crate) struct TokensRow {
     pub id: Uuid,
@@ -53,8 +66,8 @@ pub(crate) struct TokensRow {
     pub refresh: String,
 }
 
-impl From<TokensRow> for UserTokens {
-    fn from(value: TokensRow) -> Self {
-        UserTokens::new(value.bearer, value.refresh)
-    }
-}
+// impl From<TokensRow> for UserTokens {
+//     fn from(value: TokensRow) -> Self {
+//         UserTokens::new(value.bearer, value.refresh)
+//     }
+// }

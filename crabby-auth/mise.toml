@@ -1,12 +1,2 @@
 [env]
-SUPER_SECRET_KEY = "baxy_made_this"
-PGHOST = "localhost"
-PGUSER = "crabby"
-PGPASSWORD = "test"
-PGDATABASE = "crabby_userdb"
-DATABASE_URL = "postgresql://auth_login@127.0.0.1:36257/crabby_authdb?sslmode=disable"
-PGSSLROOTCERT = "../../docker/volumes/certs/ca.crt"
-PGSSLCERT = "../../docker/volumes/certs/client.auth_login.crt"
-PGSSLKEY = "../../docker/volumes/certs/client.auth_login.key"
-PGSSLMODE = "VerifyFull"
-PGPORT = 36257
+_.file = { path = "../config/auth/env.dev" }

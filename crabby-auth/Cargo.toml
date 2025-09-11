@@ -28,10 +28,12 @@ sqlx = { version = "0.8.6", features = [
     "uuid",
     "chrono",
 ] }
+serde = { version = "1.0.219", features = ["derive"] }
 anyhow = "1.0.98"
 chrono = { version = "0.4.41", features = ["serde", "now"] }
 dotenvy = "0.15.7"
 pasetors = { version = "0.7.6", features = ["v4", "paserk"] }
+blake3 = "1.8.2"
 [build-dependencies]
 tonic-build = "*"
 [dev-dependencies]
