@@ -1,9 +1,0 @@
-{"level":"info","version":"3.0.0-rc5","time":"2024-06-19T19:06:56Z","message":"Traefik version 3.0.0-rc5 built on 2024-04-11T16:27:55Z"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"\nStats collection is disabled.\nHelp us improve Traefik by turning this feature on :)\nMore details on: https://doc.traefik.io/traefik/contributing/data-collection/\n"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"Starting provider aggregator aggregator.ProviderAggregator"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"Starting provider *file.Provider"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"Starting provider *traefik.Provider"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"Starting provider *docker.Provider"}
-{"level":"info","time":"2024-06-19T19:06:56Z","message":"Starting provider *acme.ChallengeTLSALPN"}
-{"level":"error","tlsStoreName":"default","error":"unable to generate TLS certificate : tls: failed to find any PEM data in certificate input","time":"2024-06-19T19:06:56Z","message":"Unable to append certificate /certs/.cockroach-certs/node.crt to store"}
-{"level":"warn","time":"2024-06-19T19:16:57Z","message":"A new release has been found: 3.0.3. Please consider updating."}
