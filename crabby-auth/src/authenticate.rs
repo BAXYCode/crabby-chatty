@@ -1,21 +1,21 @@
 #![allow(unused_imports, unused_variables, dead_code)]
 use crate::{
+    ARGON2,
     model::{
         BearerRow, EmailRow, PasswordRow, RefreshMetadataRow, RefreshRow, TokensRow, UserRow,
         UsernameRow,
     },
     token::{
-        self, refresh, validate_refresh, RefreshTokenWithMetadata, UnverifiedRefreshToken,
-        UnverifiedWithKey, UserTokens,
+        self, RefreshTokenWithMetadata, UnverifiedRefreshToken, UnverifiedWithKey, UserTokens,
+        refresh, validate_refresh,
     },
-    ARGON2,
 };
 use anyhow::{Error, Result as AnyResult};
 use argon2::{
-    password_hash::{
-        self, rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
-    },
     Argon2,
+    password_hash::{
+        self, PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng,
+    },
 };
 use auth::authenticate_server::{Authenticate, AuthenticateServer};
 use auth::{
@@ -34,12 +34,12 @@ use pasetors::{
 };
 use sqlx::prelude::FromRow;
 use sqlx::types::chrono::{DateTime, Local as LocalTime};
-use sqlx::{query, query_as, Acquire, PgPool, Postgres};
+use sqlx::{Acquire, PgPool, Postgres, query, query_as};
 use std::{str::FromStr, sync::LazyLock};
-use tonic::{async_trait, Code};
-use tonic::{transport::Server, Request, Response as TonicResponse, Status};
+use tonic::{Code, async_trait};
+use tonic::{Request, Response as TonicResponse, Status, transport::Server};
 use tracing_subscriber::fmt::format;
-use uuid::{timestamp, Timestamp, Uuid};
+use uuid::{Timestamp, Uuid, timestamp};
 
 pub mod auth {
     tonic::include_proto!("authentication");
@@ -78,7 +78,7 @@ impl Authenticate for Authenticator {
         if let Err(possible_error) = possible_error {
             // FIX: unsafe to return database error
             let err = format!("error: {:?}", possible_error);
-            let _ = query!("ROLLBACK;").execute(&self.db).await;
+            // let _ = query!("ROLLBACK;").execute(&self.db).await;
             return Err(Status::cancelled(err));
         }
 
@@ -160,7 +160,7 @@ impl Authenticator {
         let user_row = query_as!(
             UserRow,
             "WITH username_id AS (SELECT id FROM valid.username WHERE username= ($1) ) SELECT * FROM valid.users WHERE valid.users.username_id = username_id;"
-            ,username    ).fetch_one(&self.db).await.map_err(|_err|Status::unknown("unknown username"));
+            ,username    ).fetch_one(&self.db).await.map_err(|_err|Status::unknown("unknown username"))?;
         Ok(user_row)
     }
 
@@ -233,7 +233,8 @@ impl Authenticator {
 
     async fn email_available(&self, email: &str) -> bool {
         let email: Result<EmailRow, sqlx::Error> =
-            query_as(format!("SELECT * FROM valid.email WHERE email = {}", email).as_str())
+            query_as("SELECT * FROM valid.email WHERE email = $1")
+                .bind(email)
                 .fetch_one(&self.db)
                 .await;
         if let Err(err) = email {

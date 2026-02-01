@@ -1,4 +1,5 @@
 mod authenticate;
+mod domain;
 mod model;
 mod telemetry;
 mod token;
@@ -18,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pgurl = var("PG_URL").expect("Please provide postgres url as environment variable");
 
     let pg = PgPool::connect(pgurl.as_str()).await?;
-    sqlx::migrate!("db/migrations")
+    sqlx::migrate!("./migrations")
         .set_locking(false)
         .run(&pg)
         .await?;

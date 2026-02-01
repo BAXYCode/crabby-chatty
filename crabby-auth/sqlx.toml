@@ -1,0 +1,3 @@
+[migrate]
+create-schemas = ["valid"]
+table-name = "valid._sqlx_migrations"

@@ -1,9 +1,14 @@
 [package]
 name = "crabby-auth"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+[lib]
+name = "crabby_auth"
+path = "src/lib.rs"
+[[bin]]
+name = "crabby-auth"
+path = "src/main.rs"
 [dependencies]
 argon2 = { version = "0.5.3", features = ["password-hash"] }
 tokio-macros = "2.5.0"
@@ -21,7 +26,12 @@ uuid = { version = "1.17.0", features = [
     "serde",
     "macro-diagnostics",
 ] }
-sqlx = { git = "https://github.com/launchbadge/sqlx.git", features = [
+
+#INFO: custom patch because of cockroachdb not allowing set in user
+#defined functions
+#it's probably due to this https://github.com/launchbadge/sqlx/blob/1f4b5f28f353781395ea2a5373c4c1379273e5bf/sqlx-macros-core/src/database/mod.rs#L80
+#looks like you're using CockroachDB: https://github.com/cockroachdb/cockroach/blob/aeaa401e3d354257588ebf0d479b9bc43557b087/pkg/sql/logictest/testdata/logic_test/udf_security#L160
+sqlx = { path = "../../sqlx", features = [
     "postgres",
     "migrate",
     "runtime-tokio",
@@ -35,6 +45,7 @@ chrono = { version = "0.4.41", features = ["serde", "now"] }
 dotenvy = "0.15.7"
 pasetors = { version = "0.7.6", features = ["v4", "paserk"] }
 blake3 = "1.8.2"
+validator = { version = "0.20.0", features = ["derive"] }
 [build-dependencies]
 tonic-build = "*"
 [dev-dependencies]

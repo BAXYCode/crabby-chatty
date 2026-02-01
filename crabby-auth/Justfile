@@ -4,7 +4,7 @@ default:
     just --list
 
 db-up:
-    sudo docker compose up 
+    cd ../docker/auth && sudo docker compose -f docker-compose.insecure.yaml up 
 db-reset:
     sqlx database reset
     cargo sqlx prepare

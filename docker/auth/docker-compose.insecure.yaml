@@ -1,111 +1,62 @@
 services:
-  roach1:
-    image: cockroachdb/cockroach:v23.2.4
-    volumes:
-      - "roach1:/cockroach/cockroach-data"
-    command: start --cluster-name=crabby-roach-insecure --logtostderr=WARNING --log-file-verbosity=INFO --insecure  --http-addr=0.0.0.0:8081 --cache=.25   --accept-sql-without-tls --advertise-addr=roach1_insecure:26257 --join=roach1_insecure:26257
-    container_name: roach1_insecure
-    hostname: roach1_insecure
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=roachnet"
-      # admin interface 
-      - "traefik.http.routers.roach_admin.rule=PathPrefix(`/admin/db/`) && Host(`traefik`)"
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
-      - "traefik.http.middlewares.strip_prefix.stripprefix.prefixes=/admin/db"
-      - "traefik.http.routers.roach_admin.middlewares=strip_prefix@docker"
-      # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
-      - "traefik.tcp.routers.roach_sql.tls=false"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
-    networks:
-      - roachnet
-    # depends_on:
-    #   - traefik
-
-  roach2:
-    image: cockroachdb/cockroach:v23.2.4
-    volumes:
-      - "roach2:/cockroach/cockroach-data"
-    command: start --cluster-name=crabby-roach-insecure --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=0.0.0.0:8081 --join=roach1_insecure:26257 --cache=.25   --accept-sql-without-tls --advertise-addr=roach2_insecure:26257
-    container_name: roach2_insecure
-    hostname: roach2_insecure
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=roachnet"
-      # admin interface 
-      - "traefik.http.routers.roach_admin.rule=PathPrefix(`/admin/db/`) && Host(`traefik`)"
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
-      - "traefik.http.middlewares.strip_prefix.stripprefix.prefixes=/admin/db"
-      - "traefik.http.routers.roach_admin.middlewares=strip_prefix@docker"
-      # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
-      - "traefik.tcp.routers.roach_sql.tls=false"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
-    networks:
-      - roachnet
-    # depends_on:
-    #   - traefik
-
-  roach3:
-    image: cockroachdb/cockroach:v23.2.4
-    volumes:
-      - "roach3:/cockroach/cockroach-data"
-
-    command: start --cluster-name=crabby-roach-insecure --logtostderr=WARNING --log-file-verbosity=INFO --insecure --http-addr=0.0.0.0:8081  --cache=.25   --accept-sql-without-tls --advertise-addr=roach3_insecure:26257 --join=roach1_insecure:26257
-    container_name: roach3_insecure
-    hostname: roach3_insecure
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=roachnet"
-      # admin interface 
-      - "traefik.http.routers.roach_admin.rule=PathPrefix(`/admin/db/`) && Host(`traefik`)"
-      - "traefik.http.routers.roach_admin.service=roach_admin_svc"
-      - "traefik.http.services.roach_admin_svc.loadbalancer.server.port=8081"
-      - "traefik.http.routers.roach_admin.entrypoints=roach_admin"
-      - "traefik.http.middlewares.strip_prefix.stripprefix.prefixes=/admin/db"
-      - "traefik.http.routers.roach_admin.middlewares=strip_prefix@docker"
-      # Sql command interface 
-      - "traefik.tcp.routers.roach_sql.rule=HostSNI(`*`)"
-      - "traefik.tcp.routers.roach_sql.service=roach_sql_svc"
-      - "traefik.tcp.routers.roach_sql.tls=false"
-      - "traefik.tcp.services.roach_sql_svc.loadbalancer.server.port=26257"
-      - "traefik.tcp.routers.roach_sql.entrypoints=roachdb_sql"
-    # depends_on:
-    #   - traefik
-    networks:
-      - roachnet
-  db-init:
-    image: baxydocker/db-init:latest
-    container_name: init
-    hostname: roach-init
-    command: "/tool"
+  postgres:
+    image: postgres:latest
+    container_name: postgres_insecure
+    hostname: postgresdb
     environment:
-      - HEALTHCHECK=http://traefik:8081/admin/db/api/v2/health/?ready=1
-      - COCKROACH_HOST=traefik
-      - COCKROACH_PORT=26257
-      - COCKROACH_USER=root
-      - COCKROACH_INSECURE=true
-      # uncomment the following line when first initializing a cluster
-      # - COCKROACH_INIT=
-      - DATABASE_NAME=crabby_userdb
-      - DATABASE_PASSWORD=test
-      - DATABASE_USER=crabby
-    depends_on:
-      - traefik
+      POSTGRES_MULTIPLE_DATABASES: "auth,userdb"
+      POSTGRES_MULTIPLE_USERS: "auth,userdb"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../postgres:/docker-entrypoint-initdb.d:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=postgres"
+      - "traefik.tcp.routers.postgres_sql.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.postgres_sql.entrypoints=db_sql"
+      - "traefik.tcp.routers.postgres_sql.tls=false"
+      - "traefik.tcp.routers.postgres_sql.service=pg_sql_svc"
+      - "traefik.tcp.services.pg_sql_svc.loadbalancer.server.port=5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     networks:
-      - roachnet 
+      - postgres
+
+  # The setup and scripts used for postgres and pgadmin is following a guide that can be found here:https://event-driven.io/en/automatically_connect_pgadmin_to_database/
+  # The scripts for postgres are located in ../docker/postgres
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "pgadmin4@pgadmin.org"
+      PGADMIN_DEFAULT_PASSWORD: "postgres"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=postgres"
+      - "traefik.http.routers.postgres_admin.rule=Host(`pgadmin.localhost`)"
+      - "traefik.http.routers.postgres_admin.entrypoints=web"
+      - "traefik.http.routers.postgres_admin.tls=false"
+      - "traefik.http.routers.postgres_admin.service=pg_admin_svc"
+      - "traefik.http.services.pg_admin_svc.loadbalancer.server.port=80"
+    networks:
+      - postgres
+    volumes:
+      - ../pgadmin/servers.json:/pgadmin4/servers.json
+    # Optional: ensure pgadmin starts after postgres
+    depends_on:
+      - postgres
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.6
     container_name: traefik
     hostname: traefik
     command:
@@ -113,45 +64,37 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.roach_admin=true"
-      - "--entrypoints.roachdb_sql=true"
+      - "--entrypoints.db_sql=true"
       - "--entrypoints.web=true"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.roach_admin.address=:8081"
-      - "--entrypoints.roachdb_sql.address=:26257"
+      - "--entrypoints.db_sql.address=:5432"
       - "--log=true"
-      - "--log.filepath=/traefik.insecure.log"
+      - "--log.filepath=/logs/traefik.insecure.log"
       - "--log.level=INFO"
       - "--accesslog=true"
       - "--accesslog.format=json"
       - "--accesslog.addinternals=true"
-      - "--accesslog.filepath=/traefik.insecure.access.log"
+      - "--accesslog.filepath=/logs/traefik.insecure.access.log"
     ports:
-      - "69:80"
+      - "6969:80"
       - "8080:8080"
       - "8081:8081"
-      - "26257:26257"
+      - "5432:5432"
     labels:
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      # - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`) && (PathPrefix(`/api`) ||
+        PathPrefix(`/dashboard`))"
       - "traefik.http.routers.dashboard.service=api@internal"
     volumes:
-      - "../../logs/traefik.insecure.log:/traefik.insecure.log"
-      - "../../logs/traefik.insecure.access.log:/traefik.insecure.access.log"
+      - "../../logs:/logs"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     depends_on:
-      - roach1
-      - roach2
-      - roach3
+      - postgres
     networks:
-      - roachnet
+      - postgres
 volumes:
-  roach1:
-  roach2:
-  roach3:
-
+  pgdata:
 
 networks:
-  roachnet:
-    external: true
-  init-db:
+  postgres:
     external: true

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use pasetors::{
+    Local, Public,
     claims::{Claims, ClaimsValidationRules},
     footer::Footer,
     keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, SymmetricKey},
@@ -9,7 +10,6 @@ use pasetors::{
     public,
     token::{TrustedToken, UntrustedToken},
     version4::V4,
-    Local, Public,
 };
 use tonic::Status;
 use uuid::Uuid;
