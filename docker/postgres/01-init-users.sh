@@ -9,6 +9,7 @@ function create_user() {
 	psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
 	    CREATE USER "${user}_login" WITH PASSWORD 'login';
 	    GRANT ALL PRIVILEGES ON DATABASE $user TO "${user}_login";
+        ALTER DATABASE ${user} OWNER TO "${user}_login"
         GRANT ALL PRIVILEGES ON SCHEMA public TO "${user}_login";
 EOSQL
 }

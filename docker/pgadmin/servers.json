@@ -10,18 +10,6 @@
             "Password": "login",
             "SSLMode": "prefer",
             "Favorite": true
-        },
-        "2":{
-            "Group": "Servers",
-            "Name": "userDB",
-            "Host": "postgres",
-            "Port": 5432,
-            "MaintenanceDB": "postgres",
-            "Username": "userdb_login", 
-            "Password": "login",
-            "SSLMode": "prefer",
-            "Favorite": true
-
         }
     }
 }

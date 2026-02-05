@@ -27,11 +27,7 @@ uuid = { version = "1.17.0", features = [
     "macro-diagnostics",
 ] }
 
-#INFO: custom patch because of cockroachdb not allowing set in user
-#defined functions
-#it's probably due to this https://github.com/launchbadge/sqlx/blob/1f4b5f28f353781395ea2a5373c4c1379273e5bf/sqlx-macros-core/src/database/mod.rs#L80
-#looks like you're using CockroachDB: https://github.com/cockroachdb/cockroach/blob/aeaa401e3d354257588ebf0d479b9bc43557b087/pkg/sql/logictest/testdata/logic_test/udf_security#L160
-sqlx = { path = "../../sqlx", features = [
+sqlx = { version = "0.9.0-alpha.1", features = [
     "postgres",
     "migrate",
     "runtime-tokio",
@@ -40,14 +36,17 @@ sqlx = { path = "../../sqlx", features = [
     "sqlx-toml",
 ] }
 serde = { version = "1.0.219", features = ["derive"] }
-anyhow = "1.0.98"
 chrono = { version = "0.4.41", features = ["serde", "now"] }
 dotenvy = "0.15.7"
-pasetors = { version = "0.7.6", features = ["v4", "paserk"] }
+pasetors = { version = "0.7.7", features = ["v4", "paserk"] }
 blake3 = "1.8.2"
 validator = { version = "0.20.0", features = ["derive"] }
+crabby-core = { path = "../crabby-core" }
+eyre = "0.6.12"
+sha2 = "0.10.9"
+hmac = "0.12.1"
 [build-dependencies]
 tonic-build = "*"
 [dev-dependencies]
-faker_rand = "0.1.1"
+fake = "4.4.0"
 rand = "0.9.1"

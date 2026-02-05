@@ -2,3 +2,4 @@ target
 bacon-ls.log
 Cargo.lock
 logs/
+.bacon-locations

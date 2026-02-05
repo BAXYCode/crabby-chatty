@@ -29,9 +29,8 @@ message LoginRequest {
   string password = 2;
 }
 message LoginSuccess {
-  string refresh = 1;
-  string username=2;
-  string user_id =3;
+  string username=1;
+  string user_id =2;
 }
 message LoginResponse {
     LoginSuccess login_success = 1;
@@ -46,8 +45,7 @@ message RefreshSuccess{
   optional string refresh =2;
 }
 message RefreshResponse{
-  string refresh = 1;
-  optional string bearer = 2;
+  RefreshSuccess refresh =1 ;
 }
 
 message PublicKeyRequest{

@@ -1,9 +1,0 @@
-error /home/baxy/.projects/crabby-chatty/crabby-auth/src/authenticate.rs:81:21 error returned from database: unimplemented: SET usage inside a function definition
-error /home/baxy/.projects/crabby-chatty/crabby-auth/src/main.rs:21:5 error canonicalizing migration directory /home/baxy/.projects/crabby-chatty/crabby-auth/db/migrations: No such file or directory (os error 2)
-error /home/baxy/.projects/crabby-chatty/crabby-auth/src/authenticate.rs:164:12 mismatched types
-error /home/baxy/.projects/crabby-chatty/crabby-auth/src/authenticate.rs:164:9 mismatched types
-error /home/baxy/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:552:5 mismatched types
-error /home/baxy/.projects/crabby-chatty/crabby-auth/src/authenticate.rs:236:22 temporary value dropped while borrowed
-warning /home/baxy/.projects/crabby-chatty/crabby-auth/src/model.rs:1:5 unused import: `crate::token::UserTokens`
-warning /home/baxy/.projects/crabby-chatty/crabby-auth/src/token.rs:6:52 unused import: `AsymmetricSecretKey`
-warning /home/baxy/.projects/crabby-chatty/crabby-auth/src/token.rs:172:32 unused variable: `token`

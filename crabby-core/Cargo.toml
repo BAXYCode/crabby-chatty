@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.80"
 tokio = { version = "1.37.0", features = ["signal"] }
+pasetors = { version = "0.7.7", features = ["v4", "paserk"] }
+thiserror = "2.0.18"
+sqlx = { version = "0.8.6", features = ["postgres"] }
+eyre = "0.6.12"
