@@ -10,8 +10,9 @@ use pasetors::{
 };
 use sha2::Sha256;
 use sqlx::{PgPool, prelude::FromRow, query, query_as};
+use uuid::Uuid;
 
-use crate::domain::models::RefreshTokenWithMetadata;
+use crate::domain::models::RefreshTokenRow;
 pub struct PostgresKeyRepo {
     pub conn: Arc<PgPool>,
 }
@@ -60,7 +61,15 @@ pub trait PasetoKeyRepo {
     async fn fetch_public_key(&self, kid: String) -> Result<AsymmetricPublicKey<V4>>;
     async fn store_local_key(&self, key: SymmetricKey<V4>) -> Result<()>;
     async fn fetch_local_key(&self, kid: String) -> Result<SymmetricKey<V4>>;
-    async fn store_refresh_info(&self, token: &RefreshTokenWithMetadata) -> Result<()>;
+    async fn store_refresh_info(&self, token: &RefreshTokenRow) -> Result<()>;
+    async fn fetch_refresh_token(&self, jti: &Uuid, user_id: &Uuid) -> Result<RefreshTokenRow>;
+    async fn rotate_refresh_info(
+        &self,
+        old_user_id: &Uuid,
+        old_jti: &Uuid,
+        old_hash: &[u8],
+        new_row: &RefreshTokenRow,
+    ) -> Result<bool>;
 }
 
 impl PasetoKeyRepo for PostgresKeyRepo {
@@ -69,15 +78,13 @@ impl PasetoKeyRepo for PostgresKeyRepo {
 
         let mut string_id = String::new();
         id.fmt(&mut string_id);
-        let mut tx = self.conn.begin().await?;
         let key_bytes = key.as_bytes();
         let _ = query!(
             "INSERT INTO validation.paseto_public_key (kid, public_paserk) VALUES ($1,$2) RETURNING kid ",
             string_id,
             key_bytes
         )
-        .fetch_one(&mut *tx).await?;
-        tx.commit().await;
+        .fetch_one(&*self.conn).await?;
         Ok(())
     }
 
@@ -97,7 +104,7 @@ impl PasetoKeyRepo for PostgresKeyRepo {
             key_bytes
         )
         .fetch_one(&*self.conn).await?;
-        tx.commit().await;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -105,20 +112,58 @@ impl PasetoKeyRepo for PostgresKeyRepo {
         <Self as KeyRetrieval<SymmetricKey<V4>>>::get_key(self, kid.as_str()).await
     }
 
-    async fn store_refresh_info(&self, token: &RefreshTokenWithMetadata) -> Result<()> {
+    async fn store_refresh_info(&self, token: &RefreshTokenRow) -> Result<()> {
         let mut tx = self.conn.begin().await?;
-        type HmacSha256 = Hmac<Sha256>;
-
-        let hash = HmacSha256::new_from_slice(token.token().as_bytes())
-            .expect("hasher")
-            .finalize();
-        let bytes = hash.into_bytes();
         let _ = query!(
             "INSERT INTO validation.refresh_token(user_id, token_jti, token_hash, issued_at, expires_at) VALUES ($1,$2, $3, $4, $5) ",
-            token.user_id,&token.jti, bytes.as_slice(), token.issued_at, token.exp
+            token.user_id,&token.token_jti, token.token_hash.as_slice(), token.issued_at, token.expires_at
         )
-        .execute(&mut *tx).await?;
-        tx.commit().await;
+        .execute(&*self.conn).await?;
+        tx.commit().await?;
         Ok(())
+    }
+
+    async fn fetch_refresh_token(&self, jti: &Uuid, user_id: &Uuid) -> Result<RefreshTokenRow> {
+        let  refresh= query_as!(RefreshTokenRow,
+            "SELECT user_id, token_jti, token_hash, issued_at, expires_at FROM validation.refresh_token WHERE token_jti=($1) and user_id=($2)",jti, user_id
+        )
+        .fetch_one(&*self.conn).await?;
+        Ok(refresh)
+    }
+
+    async fn rotate_refresh_info(
+        &self,
+        old_user_id: &Uuid,
+        old_jti: &Uuid,
+        old_hash: &[u8],
+        new_row: &RefreshTokenRow,
+    ) -> Result<bool> {
+        let mut tx = self.conn.begin().await?;
+
+        let result = query!(
+            r#"
+            UPDATE validation.refresh_token
+            SET token_jti = $1,
+                token_hash = $2,
+                issued_at = $3,
+                expires_at = $4
+            WHERE user_id = $5
+              AND token_jti = $6
+              AND token_hash = $7
+            "#,
+            new_row.token_jti,
+            new_row.token_hash.as_slice(),
+            new_row.issued_at,
+            new_row.expires_at,
+            old_user_id,
+            old_jti,
+            old_hash,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(result.rows_affected() == 1)
     }
 }

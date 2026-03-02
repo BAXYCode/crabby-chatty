@@ -1,12 +1,46 @@
-
+DB_URL := env_var_or_default("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/auth")
+DB_WAIT_TIMEOUT := env_var_or_default("DB_WAIT_TIMEOUT", "45")
+SUPER_SECRET_KEY := "dev-super-secret-pepper"
 
 default:
     just --list
 
+# Used for compiling sqlx macros + running integration tests.
+# Note: must be a privileged role because migrations create extensions.
+
 db-up:
-    cd ../docker/auth && sudo docker compose -f docker-compose.insecure.yaml up 
+    cd ../docker/auth && sudo docker compose -f docker-compose.insecure.yaml up -d 
 db-reset:
     sqlx database reset
     cargo sqlx prepare
 migrate:
     sqlx database setup
+clean:
+    cd ../docker/auth && sudo docker compose -f docker-compose.insecure.yaml down
+    sudo docker volume rm auth_pgdata
+run: db-up wait-db migrate
+    cargo run --release
+test:
+    cargo test -- --show-output
+
+# Bring up Postgres, run migrations on DB_URL (for sqlx macros), then run all tests.
+test-all: db-up wait-db
+    sqlx database setup
+    cargo test -- --show-output
+
+# Convenience targets
+test-unit:
+    cargo test --lib -- --show-output
+
+test-integration: db-up wait-db 
+    echo {{DB_URL}}
+    sqlx database setup
+    cargo test --tests -- --show-output
+
+wait-db:
+  ../scripts/wait-for-postgres.sh "{{DB_URL}}" "{{DB_WAIT_TIMEOUT}}"
+
+# run: wait-db
+#   cargo run --release
+
+

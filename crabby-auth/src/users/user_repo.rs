@@ -20,7 +20,6 @@ pub struct PostgresUserRepo {
 
 impl UserRepo for PostgresUserRepo {
     async fn register_user(&self, user: RegisterRequestData) -> Result<RegisterResponseData> {
-        let mut tx = self.conn.begin().await?;
         let response= query_as!(
             RegisterResponseData,
             "INSERT INTO validation.auth_user (email, username, password_hash) VALUES ($1,$2, $3) RETURNING user_id, username ",
@@ -28,8 +27,7 @@ impl UserRepo for PostgresUserRepo {
             user.username.username.as_str(),
             user.password.password.as_str()
         )
-        .fetch_one(&mut *tx).await?;
-        let _ = tx.commit().await;
+        .fetch_one(&*self.conn).await?;
         Ok(response)
     }
 
@@ -40,9 +38,8 @@ impl UserRepo for PostgresUserRepo {
             "SELECT * from validation.auth_user where user_id = ($1)",
             id
         )
-        .fetch_one(&mut *tx)
+        .fetch_one(&*self.conn)
         .await?;
-        tx.commit().await?;
         Ok(user)
     }
 

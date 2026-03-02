@@ -59,7 +59,7 @@ pub struct RegisterResponseData {
     pub username: String,
 }
 #[derive(FromRow, Debug)]
-pub(crate) struct UserRow {
+pub struct UserRow {
     pub user_id: Uuid,
     pub email: EmailAddress,
     pub username: Username,
@@ -84,15 +84,33 @@ impl RegisterRequestData {
         }
     }
 }
+pub struct RefreshTokenRow {
+    pub token_hash: Vec<u8>,
+    pub user_id: Uuid,
+    pub token_jti: Uuid,
+    pub issued_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
 pub struct RefreshTokenWithMetadata {
     pub token: String,
     pub user_id: Uuid,
     pub jti: Uuid,
     pub issued_at: DateTime<Utc>,
-    pub exp: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
 }
-impl RefreshTokenWithMetadata {
-    pub fn token(&self) -> String {
-        self.token.clone()
+
+pub trait ConvertToken {
+    fn to_row(&self, token_hash: Vec<u8>) -> RefreshTokenRow;
+}
+
+impl ConvertToken for RefreshTokenWithMetadata {
+    fn to_row(&self, token_hash: Vec<u8>) -> RefreshTokenRow {
+        RefreshTokenRow {
+            token_hash,
+            user_id: self.user_id,
+            token_jti: self.jti.clone(),
+            issued_at: self.issued_at.clone(),
+            expires_at: self.expires_at.clone(),
+        }
     }
 }

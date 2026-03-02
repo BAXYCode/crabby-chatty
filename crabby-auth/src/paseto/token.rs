@@ -66,7 +66,7 @@ pub(crate) fn refresh(
     let _ = claims.issuer("crabby-auth");
     let _ = claims.audience("crabby-auth");
     let _ = claims.subject(id);
-    let _ = claims.add_additional("jti", jti.to_string());
+    let _ = claims.token_identifier(jti.to_string().as_str());
 
     let mut footer = footer::Footer::new();
     footer.key_id(&Id::from(key));
@@ -78,7 +78,7 @@ pub(crate) fn refresh(
         jti,
         user_id: Uuid::from_str(id).unwrap(),
         issued_at: now,
-        exp: expiry,
+        expires_at: expiry,
     };
     Ok(token_metadata)
 }

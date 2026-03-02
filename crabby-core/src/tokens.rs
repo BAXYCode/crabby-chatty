@@ -4,12 +4,12 @@ use pasetors::token::TrustedToken;
 /*This trait will eventually be used by any service that will require token based authentication
 I am adding the trait bound for KeyRetrieval because in order to verify the validity of the token,
 a key is always required regardless of it being a public key or a local decryption key*/
-pub trait VerifyToken<T, V, K>
+pub trait VerifyToken<K>
 where
     Self::Storage: KeyRetrieval<K>,
 {
     type Storage;
-    async fn verify(&mut self, token: String) -> Result<TrustedToken>;
+    async fn verify(&self, token: String) -> Result<TrustedToken>;
 }
 pub trait KeyRetrieval<K> {
     async fn get_key(&self, kid: &str) -> Result<K>;

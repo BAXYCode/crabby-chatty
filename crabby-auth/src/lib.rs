@@ -1,7 +1,8 @@
-pub(crate) mod authenticate;
-mod domain;
-mod paseto;
-mod users;
+pub mod authenticate;
+pub mod domain;
+pub mod intercept;
+pub mod paseto;
+pub mod users;
 use argon2::{Algorithm, Argon2, Params, Version};
 use std::sync::LazyLock;
 static ARGON2: LazyLock<Argon2> =

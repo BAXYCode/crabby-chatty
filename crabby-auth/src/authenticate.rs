@@ -1,9 +1,15 @@
 #![allow(unused_imports, unused_variables, dead_code)]
 use crate::{
-    ARGON2, authenticate,
-    domain::models::{Password, RegisterRequestData, UserRow},
+    ARGON2,
+    authenticate::{self, auth::RefreshSuccess},
+    domain::models::{
+        ConvertToken, Password, RefreshTokenRow, RefreshTokenWithMetadata, RegisterRequestData,
+        UserRow,
+    },
+    intercept::TokenExtension,
     paseto::{
         self,
+        claims_config::ClaimsConfig,
         keys_repo::{PasetoKeyRepo, PostgresKeyRepo},
         token::{self, UserTokens},
     },
@@ -21,15 +27,22 @@ use auth::{
     RefreshResponse, RegisterRequest, RegisterResponse, RegisterSuccess,
 };
 use blake3::Hasher;
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use core::str;
+use crabby_core::tokens::{KeyRetrieval, VerifyToken};
 use dotenvy::{dotenv, var};
 use eyre::{Error, Result as AnyResult};
+use hmac::{Hmac, Mac};
 use pasetors::{
-    keys::{AsymmetricKeyPair, AsymmetricSecretKey, Generate, SymmetricKey},
+    claims::ClaimsValidationRules,
+    footer::Footer,
+    keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate, SymmetricKey},
+    local::decrypt,
     paserk::{FormatAsPaserk, Id},
+    token::UntrustedToken,
     version4::V4,
 };
+use sha2::Sha256;
 use sqlx::prelude::FromRow;
 use sqlx::types::chrono::{DateTime, Local as LocalTime};
 use sqlx::{Acquire, PgPool, Postgres, query, query_as};
@@ -38,6 +51,7 @@ use std::{
     str::FromStr,
     sync::{Arc, LazyLock},
 };
+use tokio::task;
 use tonic::{Code, async_trait};
 use tonic::{Request, Response as TonicResponse, Status, transport::Server};
 use tracing_subscriber::fmt::format;
@@ -46,12 +60,6 @@ use validator::Validate;
 
 pub mod auth {
     tonic::include_proto!("authentication");
-}
-
-#[derive(Debug)]
-struct UserMetadataForToken {
-    username: String,
-    id: Uuid,
 }
 pub(crate) struct Authenticator<U, K>
 where
@@ -62,6 +70,8 @@ where
     keys_repo: K,
     symmetric_key: SymmetricKey<V4>,
     asymmetric_kp: AsymmetricKeyPair<V4>,
+    pepper: String,
+    claims_config: ClaimsConfig,
 }
 
 #[async_trait]
@@ -86,8 +96,13 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             .map_err(|e| Status::invalid_argument("Failed to register"))?;
 
         let tokens = self.generate_tokens(&user.username, &user.user_id)?;
-        let refresh_token = tokens.refresh.token();
-        let possible_error = self.keys_repo.store_refresh_info(&tokens.refresh).await;
+        let refresh_token = tokens.refresh;
+        let token_hash = self
+            .hash_refresh_token(refresh_token.token.as_str())
+            .map_err(|e| Status::internal("hashing issue"))?;
+
+        let refresh_token_row = refresh_token.to_row(token_hash);
+        let possible_error = self.keys_repo.store_refresh_info(&refresh_token_row).await;
         if let Err(possible_error) = possible_error {
             // FIX: unsafe to return database error
             let err = format!("error: {:?}", possible_error);
@@ -97,7 +112,7 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
 
         let response = RegisterSuccess {
             bearer: tokens.bearer,
-            refresh: refresh_token,
+            refresh: refresh_token.token,
             username: user.username,
             user_id: user.user_id.hyphenated().to_string(),
         };
@@ -115,14 +130,107 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
 
     async fn refresh(
         &self,
-        refresh: Request<RefreshRequest>,
+        mut refresh: Request<RefreshRequest>,
     ) -> Result<TonicResponse<RefreshResponse>, Status> {
-        let metadata = refresh.metadata();
-        let creds = refresh.into_inner();
+        let token_extension = refresh.extensions_mut().remove::<TokenExtension>();
 
-        let user_id =
-            Uuid::from_str(&creds.user_id).map_err(|err| Status::internal("internal error"))?;
-        todo!()
+        // let user_id =
+        //     Uuid::from_str(&creds.user_id).map_err(|err| Status::internal("internal error"))?;
+        //     Verify token was extracted from Authorization header
+        if let Some(token_extension) = token_extension {
+            let token_string = token_extension.into_inner();
+            //TODO: NEED WAY BETTER ERROR HANDLING this map_err is redundant as I map it in the
+            //verify method, but I can fix this later
+            let trusted_token = self
+                .verify(token_string.clone())
+                .await
+                .map_err(|e| Status::unauthenticated("unauthenticated api call attempt"))?;
+            let claims = trusted_token
+                .payload_claims()
+                .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST claims"))?;
+            if let Some(user_id) = claims.get_claim("sub")
+                && let Some(user_id) = user_id.as_str()
+            {
+                //verify the refresh token compared with what we have stored in DB
+                let jti = claims
+                    .get_claim("jti")
+                    .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST jti"))?
+                    .as_str()
+                    .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST jti2"))?;
+                let parsed_jti = Uuid::parse_str(jti)
+                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED REQUEST parse jti"))?;
+                let parsed_user_id = Uuid::parse_str(user_id).map_err(|e| {
+                    Status::unauthenticated("UNAUTHENTICATED REQUEST parse user id")
+                })?;
+                let stored_token_info = self
+                    .keys_repo
+                    .fetch_refresh_token(&parsed_jti, &parsed_user_id)
+                    .await
+                    .map_err(|e| {
+                        Status::unauthenticated("UNAUTHENTICATED REQUEST fetch refresh")
+                    })?;
+                //Error out if hashes don't match
+                self.verify_refresh_hash(token_string, &stored_token_info.token_hash)
+                    .map_err(|e| {
+                        Status::unauthenticated("UNAUTHENTICATED REQUEST verify refresh")
+                    })?;
+
+                let user = self
+                    .user_repo
+                    .get_user_from_id(parsed_user_id)
+                    .await
+                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED get user"))?;
+
+                let tokens = self
+                    .generate_tokens(user.username.username.as_str(), &user.user_id)
+                    .map_err(|e| Status::internal("whoops"))?;
+                let new_access_token = tokens.bearer;
+                let now = Utc::now();
+                let leeway = Duration::hours(72);
+                let should_rotate = stored_token_info.expires_at - now <= leeway;
+
+                if !should_rotate {
+                    return Ok(TonicResponse::new(RefreshResponse {
+                        refresh: Some(RefreshSuccess {
+                            bearer: new_access_token,
+                            refresh: None,
+                        }),
+                    }));
+                }
+                let new_refresh_token = tokens.refresh.token.clone();
+                let new_refresh_token_hash = self
+                    .hash_refresh_token(new_refresh_token.as_str())
+                    .map_err(|e| Status::internal("whoops"))?;
+                //Store new refresh token info and send out both refresh and access tokens in
+                //respone
+                let new_refresh_stored_info = tokens.refresh.to_row(new_refresh_token_hash);
+
+                let rotated = self
+                    .keys_repo
+                    .rotate_refresh_info(
+                        &stored_token_info.user_id,
+                        &stored_token_info.token_jti,
+                        &stored_token_info.token_hash,
+                        &new_refresh_stored_info,
+                    )
+                    .await
+                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED rotated"))?;
+
+                if !rotated {
+                    return Err(Status::unauthenticated(
+                        "UNAUTHENTICATED REQUEST not retated1",
+                    ));
+                }
+
+                return Ok(TonicResponse::new(RefreshResponse {
+                    refresh: Some(RefreshSuccess {
+                        bearer: new_access_token,
+                        refresh: Some(new_refresh_token),
+                    }),
+                }));
+            }
+        }
+        Err(Status::unauthenticated("UNAUTHENTICATED REQUEST big boy"))
     }
     //INFO: this function needs to be changed in the future once key rotation has been implemented
     //to implement appropriate database queries related to making sure the paserk ID is a valid one.
@@ -167,35 +275,12 @@ impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             },
             symmetric_key: paseto_key,
             asymmetric_kp: AsymmetricKeyPair::generate().unwrap(),
+            pepper: super_secret_key,
+            claims_config: ClaimsConfig::new(),
         }
     }
     //
-    fn generate_tokens(&self, username: &str, user_id: &Uuid) -> Result<UserTokens, Status> {
-        //FIX: find a better way to generate unique IDs
-        let mut buffer = Uuid::encode_buffer();
-        let id = user_id.as_hyphenated().encode_lower(&mut buffer);
 
-        let bearer = token::bearer(username, id, &self.asymmetric_kp)?;
-        let refresh = token::refresh(&self.symmetric_key, id)?;
-        //FIX: Should insertion of refresh token metadata be done inside this function?
-        Ok(UserTokens::new(bearer, refresh))
-    }
-
-    async fn hash_password(pwd: Password) -> Result<Password, Status> {
-        let salt = &SaltString::generate(&mut OsRng);
-        let pass = pwd.password;
-        let hash = ARGON2.hash_password(pass.as_bytes(), salt);
-        if let Ok(hashed) = hash {
-            let hashed_password = Password {
-                password: hashed.to_string(),
-            };
-            Ok(hashed_password)
-        } else {
-            Err(Status::invalid_argument("wrong password or username"))
-        }
-    }
-
-    //
     async fn login(
         &self,
         request: Request<LoginRequest>,
@@ -207,9 +292,7 @@ impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             .get_user_from_username(&creds.username)
             .await
             .map_err(|err| Status::unauthenticated("unauthenticated request"))?;
-        let password_hash =
-            PasswordHash::new(&user.password_hash.password).expect("argon2 type from string");
-        match ARGON2.verify_password(creds.password.as_bytes(), &password_hash) {
+        match Self::verify_password(creds.password, user.password_hash.password).await {
             Ok(_) => {
                 let login_success = LoginSuccess {
                     user_id: user.user_id.hyphenated().to_string(),
@@ -222,5 +305,116 @@ impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             _ => Err(Status::unauthenticated("Could not authenticate")),
         }
     }
-    //
+    async fn verify_password(password: String, hash_str: String) -> Result<(), Status> {
+        task::spawn_blocking(move || {
+            let parsed = PasswordHash::new(&hash_str)
+                .map_err(|_| Status::internal("stored hash invalid"))?;
+
+            ARGON2
+                .verify_password(password.as_bytes(), &parsed)
+                .map_err(|_| Status::unauthenticated("bad credentials"))?;
+
+            Ok(())
+        })
+        .await
+        .map_err(|_| Status::internal("verify task failed"))?
+    }
+}
+impl<U, K> Authenticator<U, K>
+where
+    U: UserRepo + Send + Sync,
+    K: PasetoKeyRepo + Send + Sync,
+{
+    fn verify_refresh_hash(&self, claimed_token: String, stored_hash: &[u8]) -> AnyResult<()> {
+        type HmacSha256 = Hmac<Sha256>;
+
+        let mut hasher = HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
+        hasher.update(claimed_token.as_bytes());
+        hasher.verify_slice(stored_hash)?;
+        Ok(())
+    }
+    fn hash_refresh_token(&self, token: &str) -> AnyResult<Vec<u8>> {
+        type HmacSha256 = Hmac<Sha256>;
+
+        let mut hasher = HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
+        hasher.update(token.as_bytes());
+        let hash = hasher.finalize();
+        let mut result = Vec::new();
+        result.extend_from_slice(hash.into_bytes().as_slice());
+        Ok(result)
+    }
+    async fn hash_password(pwd: Password) -> Result<Password, Status> {
+        task::spawn_blocking(move || {
+            let salt = SaltString::generate(&mut OsRng);
+            let hash = ARGON2
+                .hash_password(pwd.password.as_bytes(), &salt)
+                .map_err(|_| Status::internal("password hashing failed"))?
+                .to_string();
+
+            Ok(Password { password: hash })
+        })
+        .await
+        .map_err(|_| Status::internal("hash task failed"))?
+    }
+    fn generate_tokens(&self, username: &str, user_id: &Uuid) -> Result<UserTokens, Status> {
+        //FIX: find a better way to generate unique IDs
+        let mut buffer = Uuid::encode_buffer();
+        let id = user_id.as_hyphenated().encode_lower(&mut buffer);
+
+        let bearer = token::bearer(username, id, &self.asymmetric_kp)?;
+        let refresh = token::refresh(&self.symmetric_key, id)?;
+        //FIX: Should insertion of refresh token metadata be done inside this function?
+        Ok(UserTokens::new(bearer, refresh))
+    }
+}
+
+impl<U, K> VerifyToken<SymmetricKey<V4>> for Authenticator<U, K>
+where
+    U: UserRepo + Send + Sync,
+    K: PasetoKeyRepo + Send + Sync,
+    K: KeyRetrieval<SymmetricKey<V4>>,
+{
+    type Storage = K;
+
+    async fn verify(&self, token: String) -> AnyResult<pasetors::token::TrustedToken> {
+        let current_key_id = Id::from(&self.symmetric_key);
+        let untrusted = UntrustedToken::try_from(token.as_str())
+            .map_err(|e| Status::unauthenticated("unauthenticated request"))?;
+
+        let mut untrusted_footer = Footer::new();
+        untrusted_footer
+            .parse_bytes(untrusted.untrusted_footer())
+            .map_err(|e| Status::unauthenticated("unauthenticated request"))?;
+        //if the kid in the footer isn't the kid of the currently active key
+        if let Some(value) = untrusted_footer.get_claim("kid")
+            && let Some(string) = value.as_str()
+            && Id::try_from(string).map_err(|e| {
+                eyre::Report::new(Status::unauthenticated("unauthenticated api call attempt"))
+            })? != current_key_id
+        {
+            let key = self.keys_repo.fetch_local_key(string.to_string()).await?;
+
+            let token = decrypt(
+                &key,
+                &untrusted,
+                self.claims_config.refresh(),
+                Some(&untrusted_footer),
+                None,
+            )?;
+            return Ok(token);
+        }
+        if let Ok(token) = decrypt(
+            &self.symmetric_key,
+            &untrusted,
+            self.claims_config.refresh(),
+            Some(&untrusted_footer),
+            None,
+        ) {
+            return Ok(token);
+        }
+
+        Err(eyre::Report::new(Status::unauthenticated(
+            "unauthenticated api call attempt",
+        )))
+    }
 }
