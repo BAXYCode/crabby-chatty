@@ -3,3 +3,6 @@ bacon-ls.log
 Cargo.lock
 logs/
 .bacon-locations
+docker/volumes/certs
+docker/volumes.old/
+

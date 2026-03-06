@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO validation.refresh_token(user_id, token_jti, token_hash, issued_at, expires_at) VALUES ($1,$2, $3, $4, $5) ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bytea",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "97c49fb89c9da46553274df7f4cf2f1a51c4879f8d8186d0e6ea9635670408b2"
+}

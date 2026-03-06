@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE validation.refresh_token\n            SET token_jti = $1,\n                token_hash = $2,\n                issued_at = $3,\n                expires_at = $4\n            WHERE user_id = $5\n              AND token_jti = $6\n              AND token_hash = $7\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bytea",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Uuid",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "03405f30e2d3dc27636d648004dce052eef814041599cd7169606483bf703398"
+}

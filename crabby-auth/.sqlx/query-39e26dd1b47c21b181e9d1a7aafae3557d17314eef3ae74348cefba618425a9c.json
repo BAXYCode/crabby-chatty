@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO validation.paseto_public_key (kid, public_paserk) VALUES ($1,$2) RETURNING kid ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kid",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "validation.paseto_public_key",
+            "name": "kid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "39e26dd1b47c21b181e9d1a7aafae3557d17314eef3ae74348cefba618425a9c"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT public_paserk FROM  validation.paseto_public_key  WHERE kid= ( $1 )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "public_paserk",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "validation.paseto_public_key",
+            "name": "public_paserk"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d9d1874d95b9209ac60c3f48cd3adf8da4fda2401946d0a12bd3df32a82edec0"
+}

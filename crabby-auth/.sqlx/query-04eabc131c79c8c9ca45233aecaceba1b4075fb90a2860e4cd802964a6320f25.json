@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT local_wrap_paserk FROM  validation.paseto_local_wrap_key WHERE kid= ( $1 )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "local_wrap_paserk",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "validation.paseto_local_wrap_key",
+            "name": "local_wrap_paserk"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "04eabc131c79c8c9ca45233aecaceba1b4075fb90a2860e4cd802964a6320f25"
+}
