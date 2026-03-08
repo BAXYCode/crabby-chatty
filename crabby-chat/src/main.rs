@@ -1,15 +1,17 @@
 #![allow(dead_code, unused_variables, unused_imports, unused_mut)]
+mod actors;
 mod api;
 mod client;
 mod error;
 mod event;
 mod event_types;
 mod handle;
+pub mod messages;
 use api::rest;
 use axum::{
     extract::{
-        ws::{Message, WebSocket},
         ConnectInfo, FromRef, State, WebSocketUpgrade,
+        ws::{Message, WebSocket},
     },
     response::IntoResponse,
     routing::get,
@@ -20,20 +22,20 @@ use crabby_core::{engine::Engine, shutdown::shutdown_signal};
 use error::ChatError;
 use event::ServerEvent;
 use event_types::{connect, messages::Message as ChatMessage};
-use futures::{stream::SplitSink, stream::SplitStream, stream::Stream, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, stream::SplitSink, stream::SplitStream, stream::Stream};
 use handle::Handler;
 use hashbrown::HashMap;
 use std::net::SocketAddr;
 use tokio::{
     net::TcpListener,
     select,
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
 };
-use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tracing::{error, info, instrument, warn};
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use uuid::{serde, NoContext, Timestamp, Uuid};
+
+use uuid::{NoContext, Timestamp, Uuid, serde};
 
 #[tokio::main]
 async fn main() {
@@ -78,12 +80,12 @@ async fn websocket(
     info!("received connection from {addr}");
     ws.on_upgrade(move |socket| websocket_handler(socket, addr, state))
 }
+
 // TODO: add token extractor for extracting user UUID
 async fn websocket_handler(ws: WebSocket, addr: SocketAddr, mut state: ChannelState) {
     let (mut sink, mut stream) = ws.split();
 
-    let mut recv = register(&mut state, None).await.unwrap();
-    let (recv, id) = recv;
+    let (recv, id) = register(&mut state, None).await.unwrap();
     info!("User id: {:?}", id);
     // Task that listens on the websocket for incoming messages and uses "ChannelState" to send those messages to the Engine
     let _recv = tokio::spawn(async move { incoming_handler(stream, id, state).await });
