@@ -1,13 +1,11 @@
-#![allow(dead_code, unused_variables, unused_imports, unused_mut)]
+#![allow(dead_code)]
 mod actors;
-mod api;
 mod client;
 mod error;
 mod event;
 mod event_types;
 mod handle;
 pub mod messages;
-use api::rest;
 use axum::{
     extract::{
         ConnectInfo, FromRef, State, WebSocketUpgrade,
@@ -16,30 +14,25 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use axum_macros::FromRef;
-use crabby_core::{engine, shutdown};
-use crabby_core::{engine::Engine, shutdown::shutdown_signal};
+use crabby_core::engine::Engine;
+use crabby_core::shutdown::shutdown_signal;
 use error::ChatError;
 use event::ServerEvent;
-use event_types::{connect, messages::Message as ChatMessage};
-use futures::{SinkExt, StreamExt, stream::SplitSink, stream::SplitStream, stream::Stream};
+use event_types::messages::Message as ChatMessage;
+use futures::{SinkExt, StreamExt, stream::SplitSink};
 use handle::Handler;
 use hashbrown::HashMap;
-use kameo::{
-    Actor,
-    actor::{ActorRef, Spawn},
-};
+use kameo::actor::{ActorRef, Spawn};
 use std::net::SocketAddr;
 use tokio::{
     net::TcpListener,
-    select,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+    sync::mpsc::{UnboundedReceiver, UnboundedSender},
 };
 use tracing::{error, info, instrument, warn};
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use uuid::{NoContext, Timestamp, Uuid, serde};
+use uuid::{NoContext, Timestamp, Uuid};
 
 use crate::actors::{
     engine::EngineActor,
@@ -94,12 +87,18 @@ async fn websocket(
 }
 
 // TODO: add token extractor for extracting user UUID
-async fn websocket_handler(ws: WebSocket, addr: SocketAddr, mut state: ChannelState) {
+async fn websocket_handler(
+    ws: WebSocket,
+    addr: SocketAddr,
+    mut state: ChannelState,
+) {
     let (mut sink, mut stream) = ws.split();
     let id = crate::id();
-    let outbox = OutgoingWebsocketActor::new(sink, state.inner.clone(), id.clone());
+    let outbox =
+        OutgoingWebsocketActor::new(sink, state.inner.clone(), id.clone());
     OutgoingWebsocketActor::spawn(outbox);
-    let inbox: IncomingWebsocketActor = IncomingMessageActor::new(state.inner.clone(), id.clone());
+    let inbox: IncomingWebsocketActor =
+        IncomingMessageActor::new(state.inner.clone(), id.clone());
     let stream = Box::pin(stream.filter_map(|item| async move { item.ok() }));
     let inbox_ref = IncomingWebsocketActor::spawn(inbox);
     inbox_ref.attach_stream(stream, (), ());

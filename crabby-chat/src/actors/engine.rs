@@ -23,7 +23,10 @@ impl Actor for EngineActor {
 
     type Error = Infallible;
 
-    async fn on_start(args: Self::Args, actor_ref: ActorRef<Self>) -> Result<Self, Self::Error> {
+    async fn on_start(
+        args: Self::Args,
+        actor_ref: ActorRef<Self>,
+    ) -> Result<Self, Self::Error> {
         Ok(args)
     }
 }
