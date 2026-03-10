@@ -48,7 +48,7 @@ async fn incoming_messages(mut income: SplitStream<WebSocket>) {
                 Message::Text(str) => Vec::from(str),
                 Message::Binary(bin) => bin,
             };
-            let message: ChatMessage =
+            let message: UserMessage =
                 serde_json::from_slice(&message).expect("Could not parse websocket message");
             println!("from engine: {:?}", message)
         }
@@ -64,7 +64,7 @@ async fn outgoing_message(mut sink: SplitSink<WebSocket, Message>, mut reader: B
         }
         let blah = sink
             .send(Message::Binary(
-                serde_json::to_vec(&ChatMessage::from_string(buf)).unwrap(),
+                serde_json::to_vec(&UserMessage::from_string(buf)).unwrap(),
             ))
             .await;
         buf = String::new();
@@ -92,6 +92,21 @@ impl ChatMessage {
         ChatMessage {
             content: MessageContent::String(string),
             from: id(),
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserMessage {
+    pub from: Uuid,
+    pub to: Uuid,
+    pub contents: String,
+}
+impl UserMessage {
+    fn from_string(string: String) -> Self {
+        UserMessage {
+            contents: string,
+            from: id(),
+            to: id(),
         }
     }
 }

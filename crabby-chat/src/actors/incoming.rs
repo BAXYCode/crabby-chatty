@@ -1,15 +1,18 @@
-use axum::extract::ws::Message as WsMessage;
+use axum::extract::ws::{Message as WsMessage, WebSocket};
 use eyre::Ok;
 use futures::{Stream, stream::SplitStream};
 use kameo::{Actor, actor::ActorRef, error::Infallible, message::StreamMessage, prelude::Message};
-use std::marker::PhantomData;
+use std::{marker::PhantomData, pin::Pin};
 use uuid::Uuid;
 
 use crate::{
     actors::{converter::incoming::Decode, engine::EngineActor},
     messages::UserMessage,
 };
-pub type WsIncomingMessageActor<S> = IncomingMessageActor<WsMessage, S>;
+//Because axum's Websocket stream returns Result<Item,Error> I need to filter_map to get a stream
+//of only Items
+pub type IncomingWebsocketActor =
+    IncomingMessageActor<WsMessage, Pin<Box<dyn Stream<Item = WsMessage> + Send>>>;
 pub struct IncomingMessageActor<I, S>
 where
     S: Stream<Item = I> + Send + 'static,
@@ -21,11 +24,21 @@ where
     _stream: PhantomData<S>,
     _stream_item: PhantomData<I>,
 }
+
 impl<I, S> IncomingMessageActor<I, S>
 where
     S: Stream<Item = I> + Send + 'static,
     I: Send + Sync + 'static,
 {
+    pub fn new(engine: ActorRef<EngineActor>, user_id: Uuid) -> Self {
+        Self {
+            engine,
+            user_id,
+            me: None,
+            _stream: PhantomData::default(),
+            _stream_item: PhantomData::default(),
+        }
+    }
     fn actor_ref(&mut self, handle: ActorRef<Self>) {
         self.me = Some(handle);
     }
@@ -100,30 +113,27 @@ where
     ) -> Self::Reply {
         match msg {
             StreamMessage::Next(msg) => {
+                println!("inside incoming");
                 let decoded = Self::decode(msg);
-                match decoded {
-                    std::result::Result::Ok(msg) => {
-                        self.engine.tell(msg).await;
-                    }
-                    _ => (),
+                if let std::result::Result::Ok(msg) = decoded {
+                    let _ = self.engine.tell(msg).await;
                 }
             }
-            StreamMessage::Started(_) => todo!(),
+            StreamMessage::Started(_) => println!("started"),
             //TODO: check to make sure implementation is secure
             StreamMessage::Finished(_) => {
-                if let Some(r) = self.me.take() {
-                    if let Err(err) = r.stop_gracefully().await {
-                        match err {
-                            kameo::error::SendError::ActorNotRunning(_) => todo!(),
-                            kameo::error::SendError::ActorStopped => todo!(),
-                            kameo::error::SendError::MailboxFull(_) => todo!(),
-                            kameo::error::SendError::HandlerError(_) => todo!(),
-                            kameo::error::SendError::Timeout(_) => todo!(),
-                        }
+                println!("finished");
+                if let Some(r) = self.me.take()
+                    && let Err(err) = r.stop_gracefully().await
+                {
+                    match err {
+                        kameo::error::SendError::ActorNotRunning(_) => todo!(),
+                        kameo::error::SendError::ActorStopped => todo!(),
+                        kameo::error::SendError::MailboxFull(_) => todo!(),
+                        kameo::error::SendError::HandlerError(_) => todo!(),
+                        kameo::error::SendError::Timeout(_) => todo!(),
                     }
-                } else {
-                    drop(self);
-                };
+                }
             }
         }
     }

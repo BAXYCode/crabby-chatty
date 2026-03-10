@@ -1,15 +1,22 @@
+use futures::Sink;
 use hashbrown::HashMap;
-use kameo::{Actor, actor::ActorRef, error::Infallible, prelude::Message};
+use kameo::{
+    Actor,
+    actor::{ActorRef, Recipient},
+    error::Infallible,
+    prelude::Message,
+};
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
     actors::outgoing::OutgoingMessageActor,
-    messages::{UserDisconnected, UserMessage},
+    messages::{UserConnected, UserDisconnected, UserMessage},
 };
 
 #[derive(Debug)]
 pub struct EngineActor {
-    map: HashMap<Uuid, ()>,
+    map: HashMap<Uuid, Recipient<UserMessage>>,
 }
 impl Actor for EngineActor {
     type Args = Self;
@@ -17,10 +24,14 @@ impl Actor for EngineActor {
     type Error = Infallible;
 
     async fn on_start(args: Self::Args, actor_ref: ActorRef<Self>) -> Result<Self, Self::Error> {
-        unimplemented!()
+        Ok(args)
     }
 }
-
+impl EngineActor {
+    pub fn new(map: HashMap<Uuid, Recipient<UserMessage>>) -> Self {
+        Self { map }
+    }
+}
 impl Message<UserMessage> for EngineActor {
     type Reply = ();
 
@@ -29,7 +40,14 @@ impl Message<UserMessage> for EngineActor {
         msg: UserMessage,
         ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        todo!()
+        // if let Some(outgoing) = self.map.get(&msg.to) {
+        //     let _ = outgoing.tell(msg).await;
+        // }
+        let recipients: Vec<_> = self.map.values().cloned().collect();
+
+        for recipient in recipients {
+            let _ = recipient.tell(msg.clone()).await;
+        }
     }
 }
 impl Message<UserDisconnected> for EngineActor {
@@ -45,4 +63,14 @@ impl Message<UserDisconnected> for EngineActor {
         };
     }
 }
+impl Message<UserConnected> for EngineActor {
+    type Reply = ();
 
+    async fn handle(
+        &mut self,
+        msg: UserConnected,
+        ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        self.map.insert(msg.0, msg.1);
+    }
+}
