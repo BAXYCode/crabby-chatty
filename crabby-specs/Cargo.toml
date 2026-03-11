@@ -1,0 +1,12 @@
+[package]
+name = "crabby-specs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+asyncapi-rust = { git = "https://github.com/paval-shlyk/asyncapi-rust.git", branch = "main" }
+ferroid = "1.0.2"
+schemars = { version = "1.2.1", features = ["uuid1", "chrono04"] }
+serde = { version = "1.0.228", features = ["serde_derive"] }
+serde_json = "1.0.149"
+uuid = { version = "1.22.0", features = ["serde", "v7"] }

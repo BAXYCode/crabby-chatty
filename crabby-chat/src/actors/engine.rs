@@ -1,4 +1,5 @@
-use futures::Sink;
+use crate::messages::internal::{UserConnected, UserDisconnected, UserMessage};
+use crabby_specs::WsApi;
 use hashbrown::HashMap;
 use kameo::{
     Actor,
@@ -6,13 +7,7 @@ use kameo::{
     error::Infallible,
     prelude::Message,
 };
-use serde::Serialize;
 use uuid::Uuid;
-
-use crate::{
-    actors::outgoing::OutgoingMessageActor,
-    messages::{UserConnected, UserDisconnected, UserMessage},
-};
 
 #[derive(Debug)]
 pub struct EngineActor {
@@ -25,7 +20,7 @@ impl Actor for EngineActor {
 
     async fn on_start(
         args: Self::Args,
-        actor_ref: ActorRef<Self>,
+        _actor_ref: ActorRef<Self>,
     ) -> Result<Self, Self::Error> {
         Ok(args)
     }

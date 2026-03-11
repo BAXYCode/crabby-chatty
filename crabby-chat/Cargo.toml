@@ -9,6 +9,7 @@ name = "client"
 path = "./src/client.rs"
 [dependencies]
 crabby-core = { path = "../crabby-core" }
+crabby-specs = { path = "../crabby-specs" }
 uuid = { version = "1.22.0", features = ["v7", "serde", "macro-diagnostics"] }
 axum = { version = "0.8.8", features = ["ws"] }
 futures = "0.3.30"
@@ -30,3 +31,4 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde_json = "1.0.149"
 kameo = "0.19.2"
 eyre = "0.6.12"
+ferroid = { version = "1.0.2", features = ["async-tokio", "atomic", "serde", "snowflake"] }

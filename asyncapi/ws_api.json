@@ -1,0 +1,195 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "Crabby-Chatty Chat Websocket API",
+    "version": "1.0",
+    "description": "Internal spec for communcation over websocket for Crabby-Chatty"
+  },
+  "channels": {
+    "chat": {
+      "address": "ws",
+      "messages": {
+        "ChatMessage": {
+          "$ref": "#/components/messages/ChatMessage"
+        },
+        "UserMessage": {
+          "$ref": "#/components/messages/UserMessage"
+        }
+      }
+    }
+  },
+  "operations": {
+    "receiveMessage": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/chat"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/chat/messages/UserMessage"
+        }
+      ]
+    },
+    "sendMessage": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/chat"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/chat/messages/ChatMessage"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "UserMessage": {
+        "name": "UserMessage",
+        "title": "UserMessage",
+        "description": "User sent chat message",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "dest": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "Individual"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "Group"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                }
+              ]
+            },
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": {
+              "type": "string",
+              "const": "UserMessage"
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "contents": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "user_id",
+            "dest",
+            "timestamp",
+            "contents"
+          ]
+        }
+      },
+      "ChatMessage": {
+        "name": "ChatMessage",
+        "title": "ChatMessage",
+        "description": "Server sent chat message",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "timestamp": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "message_id": {
+              "type": "integer",
+              "minimum": 0,
+              "format": "uint64"
+            },
+            "contents": {
+              "type": "string"
+            },
+            "dest": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "Individual"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "Group"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                }
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "ChatMessage"
+            }
+          },
+          "required": [
+            "type",
+            "message_id",
+            "user_id",
+            "dest",
+            "timestamp",
+            "contents"
+          ]
+        }
+      }
+    }
+  }
+}

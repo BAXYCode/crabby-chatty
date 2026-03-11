@@ -1,18 +1,23 @@
 use axum::extract::ws::{Message as WsMessage, WebSocket};
 use eyre::Ok;
 use futures::{Stream, stream::SplitStream};
-use kameo::{Actor, actor::ActorRef, error::Infallible, message::StreamMessage, prelude::Message};
+use kameo::{
+    Actor, actor::ActorRef, error::Infallible, message::StreamMessage,
+    prelude::Message,
+};
 use std::{marker::PhantomData, pin::Pin};
 use uuid::Uuid;
 
 use crate::{
     actors::{converter::incoming::Decode, engine::EngineActor},
-    messages::UserMessage,
+    messages::internal::UserMessage,
 };
 //Because axum's Websocket stream returns Result<Item,Error> I need to filter_map to get a stream
 //of only Items
-pub type IncomingWebsocketActor =
-    IncomingMessageActor<WsMessage, Pin<Box<dyn Stream<Item = WsMessage> + Send>>>;
+pub type IncomingWebsocketActor = IncomingMessageActor<
+    WsMessage,
+    Pin<Box<dyn Stream<Item = WsMessage> + Send>>,
+>;
 pub struct IncomingMessageActor<I, S>
 where
     S: Stream<Item = I> + Send + 'static,
@@ -73,7 +78,8 @@ where
         match item {
             WsMessage::Text(_) => unimplemented!(),
             WsMessage::Binary(bytes) => {
-                let message: UserMessage = serde_json::from_slice(bytes.as_ref())?;
+                let message: UserMessage =
+                    serde_json::from_slice(bytes.as_ref())?;
                 eyre::Ok(message)
             }
             WsMessage::Ping(bytes) => unimplemented!(),
