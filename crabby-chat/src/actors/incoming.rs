@@ -102,16 +102,15 @@ where
     ) -> Self::Reply {
         match msg {
             StreamMessage::Next(msg) => {
-                println!("inside incoming");
                 let decoded = Self::decode(msg);
                 if let std::result::Result::Ok(msg) = decoded {
+                    println!("{:?}", msg);
                     let _ = self.engine.tell(msg).await;
                 }
             }
-            StreamMessage::Started(_) => println!("started"),
+            StreamMessage::Started(_) => (),
             //TODO: check to make sure implementation is secure
             StreamMessage::Finished(_) => {
-                println!("finished");
                 if let Some(r) = self.me.take()
                     && let Err(err) = r.stop_gracefully().await
                 {

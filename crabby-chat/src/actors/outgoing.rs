@@ -9,7 +9,7 @@ use axum::{extract::ws::Message as WsMessage, extract::ws::WebSocket};
 use crabby_specs::ws::outgoing::CrabbyWsFromServer;
 use futures::{Sink, SinkExt, stream::SplitSink};
 use kameo::{Actor, actor::ActorRef, error::Infallible, prelude::Message};
-use std::marker::PhantomData;
+use std::{any::Any, marker::PhantomData};
 use uuid::Uuid;
 pub struct OutgoingMessageActor<S, I, C>
 where
@@ -87,8 +87,10 @@ where
         ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
     ) -> Self::Reply {
         if let Ok(encoded) = C::encode(msg) {
-            println!("inside outgoing before sink");
-            let _ = self.sink.send(encoded).await;
+            println!("sending message");
+            let err = self.sink.send(encoded).await.err();
+
+            println!(" message sent");
         }
     }
 }

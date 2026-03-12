@@ -1,5 +1,5 @@
 #![allow(unused_variables, unused_mut, unused_imports)]
-
+use crabby_specs::WsApi;
 use crabby_specs::ws::{
     incoming::CrabbyWsFromClient, outgoing::CrabbyWsFromServer,
 };
@@ -9,7 +9,8 @@ use futures::{
 };
 use jiff::Timestamp;
 use reqwest::Client;
-use reqwest_websocket::{self, Message, RequestBuilderExt, WebSocket};
+use reqwest_websocket::{self, Message, WebSocket};
+use reqwest_websocket::{Bytes, Upgrade};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncBufReadExt, BufReader, Stdin},
@@ -45,19 +46,23 @@ async fn main() {
 }
 
 async fn incoming_messages(mut income: SplitStream<WebSocket>) {
-    info!("inside incoming");
     while let Some(serialized) = income.next().await {
         if let Ok(message) = serialized {
             let message = match message {
                 Message::Text(str) => Vec::from(str),
-                Message::Binary(bin) => bin,
+                Message::Binary(bin) => bin.to_vec(),
+                Message::Close { .. } => {
+                    break;
+                }
+                _ => {
+                    continue;
+                }
             };
             let message: CrabbyWsFromServer = serde_json::from_slice(&message)
                 .expect("Could not parse websocket message");
-            println!("from engine: {:?}", message)
+            println!("{:?}", message);
         }
     }
-    println!("leaving incoming");
 }
 
 async fn outgoing_message(
@@ -70,14 +75,17 @@ async fn outgoing_message(
         if read == 0 {
             return;
         }
+        println!("inside outgoing");
         let message = message_from_str(user_id, buf);
         let serialized = serde_json::to_vec_pretty(&message).unwrap();
-        let blah = sink.send(Message::Binary(serialized)).await;
+        let bytes = Bytes::from(serialized);
+        let blah = sink.send(Message::Binary(bytes)).await;
         buf = String::new();
     }
 }
 
 fn message_from_str(user_id: &Uuid, message: String) -> CrabbyWsFromClient {
+    println!("{:?}", message);
     CrabbyWsFromClient::UserMessage {
         user_id: user_id.clone(),
         dest: crabby_specs::ws::common::Destination::Individual { id: id() },

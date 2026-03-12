@@ -3,3 +3,9 @@
 members = ["crabby-chat", "crabby-core", "crabby-auth", "crabby-specs"]
 
 resolver = "2"
+
+[workspace.dependencies]
+
+serde = { version = "1.0.197", features = ["derive", "serde_derive"] }
+serde_json = "1.0.149"
+eyre = "0.6.12"
