@@ -9,7 +9,7 @@ use axum::{extract::ws::Message as WsMessage, extract::ws::WebSocket};
 use crabby_specs::ws::outgoing::CrabbyWsFromServer;
 use futures::{Sink, SinkExt, stream::SplitSink};
 use kameo::{Actor, actor::ActorRef, error::Infallible, prelude::Message};
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 use uuid::Uuid;
 pub struct OutgoingMessageActor<S, I, C>
 where
@@ -46,7 +46,7 @@ impl
             engine: engine_ref,
             converter: ServerToTransport,
             user_id,
-            _phantom: PhantomData::default(),
+            _phantom: PhantomData,
         }
     }
 }
@@ -84,13 +84,10 @@ where
     async fn handle(
         &mut self,
         msg: CrabbyWsFromServer,
-        ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
+        _ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
     ) -> Self::Reply {
         if let Ok(encoded) = C::encode(msg) {
-            println!("sending message");
-            let err = self.sink.send(encoded).await.err();
-
-            println!(" message sent");
+            let _ = self.sink.send(encoded).await;
         }
     }
 }

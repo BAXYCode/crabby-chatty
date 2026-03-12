@@ -1,4 +1,3 @@
-use serde_json::error;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

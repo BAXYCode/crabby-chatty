@@ -1,12 +1,9 @@
-use std::sync::Arc;
-
 use crate::{
     id::{GenerateId, IdGenerator},
-    messages::internal::{UserConnected, UserDisconnected, UserMessage},
+    messages::internal::{UserConnected, UserDisconnected},
 };
-use crabby_specs::{
-    WsApi,
-    ws::{incoming::CrabbyWsFromClient, outgoing::CrabbyWsFromServer},
+use crabby_specs::ws::{
+    incoming::CrabbyWsFromClient, outgoing::CrabbyWsFromServer,
 };
 use hashbrown::HashMap;
 use kameo::{

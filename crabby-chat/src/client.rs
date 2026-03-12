@@ -87,7 +87,7 @@ async fn outgoing_message(
 fn message_from_str(user_id: &Uuid, message: String) -> CrabbyWsFromClient {
     println!("{:?}", message);
     CrabbyWsFromClient::UserMessage {
-        user_id: user_id.clone(),
+        user_id: *user_id,
         dest: crabby_specs::ws::common::Destination::Individual { id: id() },
         timestamp: Timestamp::now().to_string(),
         contents: message,

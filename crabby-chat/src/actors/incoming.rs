@@ -1,7 +1,6 @@
-use axum::extract::ws::{Message as WsMessage, WebSocket};
+use axum::extract::ws::Message as WsMessage;
 use crabby_specs::ws::incoming::CrabbyWsFromClient;
-use eyre::Ok;
-use futures::{Stream, stream::SplitStream};
+use futures::Stream;
 use kameo::{
     Actor, actor::ActorRef, error::Infallible, message::StreamMessage,
     prelude::Message,
@@ -38,8 +37,8 @@ where
             engine,
             user_id,
             me: None,
-            _stream: PhantomData::default(),
-            _stream_item: PhantomData::default(),
+            _stream: PhantomData,
+            _stream_item: PhantomData,
         }
     }
     fn actor_ref(&mut self, handle: ActorRef<Self>) {
@@ -83,9 +82,9 @@ where
                     serde_json::from_slice(bytes.as_ref())?;
                 eyre::Ok(message)
             }
-            WsMessage::Ping(bytes) => unimplemented!(),
-            WsMessage::Pong(bytes) => unimplemented!(),
-            WsMessage::Close(close_frame) => unimplemented!(),
+            WsMessage::Ping(_bytes) => unimplemented!(),
+            WsMessage::Pong(_bytes) => unimplemented!(),
+            WsMessage::Close(_close_frame) => unimplemented!(),
         }
     }
 }
@@ -101,7 +100,7 @@ where
     async fn handle(
         &mut self,
         msg: StreamMessage<I, (), ()>,
-        ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
+        _ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
     ) -> Self::Reply {
         match msg {
             StreamMessage::Next(msg) => {

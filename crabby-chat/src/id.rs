@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use ferroid::{

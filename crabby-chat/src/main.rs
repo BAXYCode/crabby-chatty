@@ -83,17 +83,16 @@ async fn websocket(
 // TODO: add token extractor for extracting user UUID
 async fn websocket_handler(
     ws: WebSocket,
-    addr: SocketAddr,
-    mut state: ChannelState,
+    _addr: SocketAddr,
+    state: ChannelState,
 ) {
-    let (mut sink, mut stream) = ws.split();
+    let (sink, stream) = ws.split();
     //Later we extract will user id using some kind of interceptor
     let id = crate::id();
-    let outbox =
-        OutgoingWebsocketActor::new(sink, state.inner.clone(), id.clone());
+    let outbox = OutgoingWebsocketActor::new(sink, state.inner.clone(), id);
     OutgoingWebsocketActor::spawn(outbox);
     let inbox: IncomingWebsocketActor =
-        IncomingMessageActor::new(state.inner.clone(), id.clone());
+        IncomingMessageActor::new(state.inner.clone(), id);
     let stream = Box::pin(stream.filter_map(|item| async move { item.ok() }));
     let inbox_ref = IncomingWebsocketActor::spawn(inbox);
     inbox_ref.attach_stream(stream, (), ());
