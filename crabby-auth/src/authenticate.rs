@@ -3,8 +3,8 @@ use crate::{
     ARGON2,
     authenticate::{self, auth::RefreshSuccess},
     domain::models::{
-        ConvertToken, Password, RefreshTokenRow, RefreshTokenWithMetadata, RegisterRequestData,
-        UserRow,
+        ConvertToken, Password, RefreshTokenRow, RefreshTokenWithMetadata,
+        RegisterRequestData, UserRow,
     },
     intercept::TokenExtension,
     paseto::{
@@ -18,13 +18,15 @@ use crate::{
 use argon2::{
     Argon2,
     password_hash::{
-        self, PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng,
+        self, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+        rand_core::OsRng,
     },
 };
 use auth::authenticate_server::{Authenticate, AuthenticateServer};
 use auth::{
-    LoginRequest, LoginResponse, LoginSuccess, PublicKeyRequest, PublicKeyResponse, RefreshRequest,
-    RefreshResponse, RegisterRequest, RegisterResponse, RegisterSuccess,
+    LoginRequest, LoginResponse, LoginSuccess, PublicKeyRequest,
+    PublicKeyResponse, RefreshRequest, RefreshResponse, RegisterRequest,
+    RegisterResponse, RegisterSuccess,
 };
 use blake3::Hasher;
 use chrono::{Duration, Utc};
@@ -36,7 +38,10 @@ use hmac::{Hmac, Mac};
 use pasetors::{
     claims::ClaimsValidationRules,
     footer::Footer,
-    keys::{AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate, SymmetricKey},
+    keys::{
+        AsymmetricKeyPair, AsymmetricPublicKey, AsymmetricSecretKey, Generate,
+        SymmetricKey,
+    },
     local::decrypt,
     paserk::{FormatAsPaserk, Id},
     token::UntrustedToken,
@@ -87,7 +92,9 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
         let mut data = RegisterRequestData::new(inner);
         data.validate()
             //TODO: be more verbose, what exactly failed
-            .map_err(|e| Status::invalid_argument("registration data invalid"))?;
+            .map_err(|e| {
+                Status::invalid_argument("registration data invalid")
+            })?;
         data.password = Self::hash_password(data.password).await?;
         let user = self
             .user_repo
@@ -102,7 +109,8 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             .map_err(|e| Status::internal("hashing issue"))?;
 
         let refresh_token_row = refresh_token.to_row(token_hash);
-        let possible_error = self.keys_repo.store_refresh_info(&refresh_token_row).await;
+        let possible_error =
+            self.keys_repo.store_refresh_info(&refresh_token_row).await;
         if let Err(possible_error) = possible_error {
             // FIX: unsafe to return database error
             let err = format!("error: {:?}", possible_error);
@@ -132,7 +140,8 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
         &self,
         mut refresh: Request<RefreshRequest>,
     ) -> Result<TonicResponse<RefreshResponse>, Status> {
-        let token_extension = refresh.extensions_mut().remove::<TokenExtension>();
+        let token_extension =
+            refresh.extensions_mut().remove::<TokenExtension>();
 
         // let user_id =
         //     Uuid::from_str(&creds.user_id).map_err(|err| Status::internal("internal error"))?;
@@ -141,53 +150,73 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             let token_string = token_extension.into_inner();
             //TODO: NEED WAY BETTER ERROR HANDLING this map_err is redundant as I map it in the
             //verify method, but I can fix this later
-            let trusted_token = self
-                .verify(token_string.clone())
-                .await
-                .map_err(|e| Status::unauthenticated("unauthenticated api call attempt"))?;
-            let claims = trusted_token
-                .payload_claims()
-                .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST claims"))?;
+            let trusted_token =
+                self.verify(token_string.clone()).await.map_err(|e| {
+                    Status::unauthenticated("unauthenticated api call attempt")
+                })?;
+            let claims = trusted_token.payload_claims().ok_or(
+                Status::unauthenticated("UNAUTHENTICATED REQUEST claims"),
+            )?;
             if let Some(user_id) = claims.get_claim("sub")
                 && let Some(user_id) = user_id.as_str()
             {
                 //verify the refresh token compared with what we have stored in DB
                 let jti = claims
                     .get_claim("jti")
-                    .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST jti"))?
+                    .ok_or(Status::unauthenticated(
+                        "UNAUTHENTICATED REQUEST jti",
+                    ))?
                     .as_str()
-                    .ok_or(Status::unauthenticated("UNAUTHENTICATED REQUEST jti2"))?;
-                let parsed_jti = Uuid::parse_str(jti)
-                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED REQUEST parse jti"))?;
+                    .ok_or(Status::unauthenticated(
+                        "UNAUTHENTICATED REQUEST jti2",
+                    ))?;
+                let parsed_jti = Uuid::parse_str(jti).map_err(|e| {
+                    Status::unauthenticated("UNAUTHENTICATED REQUEST parse jti")
+                })?;
                 let parsed_user_id = Uuid::parse_str(user_id).map_err(|e| {
-                    Status::unauthenticated("UNAUTHENTICATED REQUEST parse user id")
+                    Status::unauthenticated(
+                        "UNAUTHENTICATED REQUEST parse user id",
+                    )
                 })?;
                 let stored_token_info = self
                     .keys_repo
                     .fetch_refresh_token(&parsed_jti, &parsed_user_id)
                     .await
                     .map_err(|e| {
-                        Status::unauthenticated("UNAUTHENTICATED REQUEST fetch refresh")
+                        Status::unauthenticated(
+                            "UNAUTHENTICATED REQUEST fetch refresh",
+                        )
                     })?;
                 //Error out if hashes don't match
-                self.verify_refresh_hash(token_string, &stored_token_info.token_hash)
-                    .map_err(|e| {
-                        Status::unauthenticated("UNAUTHENTICATED REQUEST verify refresh")
-                    })?;
+                self.verify_refresh_hash(
+                    token_string,
+                    &stored_token_info.token_hash,
+                )
+                .map_err(|e| {
+                    Status::unauthenticated(
+                        "UNAUTHENTICATED REQUEST verify refresh",
+                    )
+                })?;
 
                 let user = self
                     .user_repo
                     .get_user_from_id(parsed_user_id)
                     .await
-                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED get user"))?;
+                    .map_err(|e| {
+                        Status::unauthenticated("UNAUTHENTICATED get user")
+                    })?;
 
                 let tokens = self
-                    .generate_tokens(user.username.username.as_str(), &user.user_id)
+                    .generate_tokens(
+                        user.username.username.as_str(),
+                        &user.user_id,
+                    )
                     .map_err(|e| Status::internal("whoops"))?;
                 let new_access_token = tokens.bearer;
                 let now = Utc::now();
                 let leeway = Duration::hours(72);
-                let should_rotate = stored_token_info.expires_at - now <= leeway;
+                let should_rotate =
+                    stored_token_info.expires_at - now <= leeway;
 
                 if !should_rotate {
                     return Ok(TonicResponse::new(RefreshResponse {
@@ -203,7 +232,8 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
                     .map_err(|e| Status::internal("whoops"))?;
                 //Store new refresh token info and send out both refresh and access tokens in
                 //respone
-                let new_refresh_stored_info = tokens.refresh.to_row(new_refresh_token_hash);
+                let new_refresh_stored_info =
+                    tokens.refresh.to_row(new_refresh_token_hash);
 
                 let rotated = self
                     .keys_repo
@@ -214,7 +244,9 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
                         &new_refresh_stored_info,
                     )
                     .await
-                    .map_err(|e| Status::unauthenticated("UNAUTHENTICATED rotated"))?;
+                    .map_err(|e| {
+                        Status::unauthenticated("UNAUTHENTICATED rotated")
+                    })?;
 
                 if !rotated {
                     return Err(Status::unauthenticated(
@@ -243,8 +275,10 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
 
         let public_key = &self.asymmetric_kp.public;
         let paserk_id = Id::from(public_key);
-        let attempted_id = Id::try_from(request_info.as_str())
-            .map_err(|err| Status::permission_denied("Not signed by crabby-chatty"))?;
+        let attempted_id =
+            Id::try_from(request_info.as_str()).map_err(|err| {
+                Status::permission_denied("Not signed by crabby-chatty")
+            })?;
 
         //INFO: This is just a decoy check to say that it was checked
         if paserk_id == attempted_id {
@@ -263,7 +297,8 @@ impl Authenticate for Authenticator<PostgresUserRepo, PostgresKeyRepo> {
 //
 impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
     pub fn new(pool: PgPool) -> Self {
-        let super_secret_key = var("SUPER_SECRET_KEY").expect("Set super secret key");
+        let super_secret_key =
+            var("SUPER_SECRET_KEY").expect("Set super secret key");
         let paseto_key = SymmetricKey::<V4>::generate().unwrap();
         let connection_pool = Arc::new(pool);
         Self {
@@ -291,8 +326,12 @@ impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             .user_repo
             .get_user_from_username(&creds.username)
             .await
-            .map_err(|err| Status::unauthenticated("unauthenticated request"))?;
-        match Self::verify_password(creds.password, user.password_hash.password).await {
+            .map_err(|err| {
+                Status::unauthenticated("unauthenticated request")
+            })?;
+        match Self::verify_password(creds.password, user.password_hash.password)
+            .await
+        {
             Ok(_) => {
                 let login_success = LoginSuccess {
                     user_id: user.user_id.hyphenated().to_string(),
@@ -305,7 +344,10 @@ impl Authenticator<PostgresUserRepo, PostgresKeyRepo> {
             _ => Err(Status::unauthenticated("Could not authenticate")),
         }
     }
-    async fn verify_password(password: String, hash_str: String) -> Result<(), Status> {
+    async fn verify_password(
+        password: String,
+        hash_str: String,
+    ) -> Result<(), Status> {
         task::spawn_blocking(move || {
             let parsed = PasswordHash::new(&hash_str)
                 .map_err(|_| Status::internal("stored hash invalid"))?;
@@ -325,10 +367,15 @@ where
     U: UserRepo + Send + Sync,
     K: PasetoKeyRepo + Send + Sync,
 {
-    fn verify_refresh_hash(&self, claimed_token: String, stored_hash: &[u8]) -> AnyResult<()> {
+    fn verify_refresh_hash(
+        &self,
+        claimed_token: String,
+        stored_hash: &[u8],
+    ) -> AnyResult<()> {
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut hasher = HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
+        let mut hasher =
+            HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
         hasher.update(claimed_token.as_bytes());
         hasher.verify_slice(stored_hash)?;
         Ok(())
@@ -336,7 +383,8 @@ where
     fn hash_refresh_token(&self, token: &str) -> AnyResult<Vec<u8>> {
         type HmacSha256 = Hmac<Sha256>;
 
-        let mut hasher = HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
+        let mut hasher =
+            HmacSha256::new_from_slice(self.pepper.as_bytes()).expect("hasher");
         hasher.update(token.as_bytes());
         let hash = hasher.finalize();
         let mut result = Vec::new();
@@ -356,7 +404,11 @@ where
         .await
         .map_err(|_| Status::internal("hash task failed"))?
     }
-    fn generate_tokens(&self, username: &str, user_id: &Uuid) -> Result<UserTokens, Status> {
+    fn generate_tokens(
+        &self,
+        username: &str,
+        user_id: &Uuid,
+    ) -> Result<UserTokens, Status> {
         //FIX: find a better way to generate unique IDs
         let mut buffer = Uuid::encode_buffer();
         let id = user_id.as_hyphenated().encode_lower(&mut buffer);
@@ -376,7 +428,10 @@ where
 {
     type Storage = K;
 
-    async fn verify(&self, token: String) -> AnyResult<pasetors::token::TrustedToken> {
+    async fn verify(
+        &self,
+        token: String,
+    ) -> AnyResult<pasetors::token::TrustedToken> {
         let current_key_id = Id::from(&self.symmetric_key);
         let untrusted = UntrustedToken::try_from(token.as_str())
             .map_err(|e| Status::unauthenticated("unauthenticated request"))?;
@@ -389,10 +444,13 @@ where
         if let Some(value) = untrusted_footer.get_claim("kid")
             && let Some(string) = value.as_str()
             && Id::try_from(string).map_err(|e| {
-                eyre::Report::new(Status::unauthenticated("unauthenticated api call attempt"))
+                eyre::Report::new(Status::unauthenticated(
+                    "unauthenticated api call attempt",
+                ))
             })? != current_key_id
         {
-            let key = self.keys_repo.fetch_local_key(string.to_string()).await?;
+            let key =
+                self.keys_repo.fetch_local_key(string.to_string()).await?;
 
             let token = decrypt(
                 &key,
