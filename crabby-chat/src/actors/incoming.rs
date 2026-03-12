@@ -72,7 +72,10 @@ where
 
     type Error = Infallible;
 
-    fn decode(item: WsMessage) -> eyre::Result<Self::Output> {
+    fn decode(
+        item: WsMessage,
+    ) -> eyre::Result<<IncomingMessageActor<I, S> as Decode<WsMessage>>::Output>
+    {
         match item {
             WsMessage::Text(_) => unimplemented!(),
             WsMessage::Binary(bytes) => {
@@ -122,6 +125,138 @@ where
                         kameo::error::SendError::Timeout(_) => todo!(),
                     }
                 }
+            }
+        }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Bytes;
+    use crabby_specs::ws::common::Destination;
+
+    /// Helper: build a binary WsMessage from a CrabbyWsFromClient value
+    fn make_binary_ws_message(msg: &CrabbyWsFromClient) -> WsMessage {
+        let json = serde_json::to_vec(msg).unwrap();
+        WsMessage::Binary(Bytes::from(json))
+    }
+
+    #[test]
+    fn decode_valid_binary_user_message() {
+        let user_id = Uuid::from_u128(1);
+        let dest_id = Uuid::from_u128(2);
+        let original = CrabbyWsFromClient::UserMessage {
+            user_id,
+            dest: Destination::Individual { id: dest_id },
+            timestamp: "2026-03-01T12:00:00Z".to_string(),
+            contents: "test message".to_string(),
+        };
+        let ws_msg = make_binary_ws_message(&original);
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+        assert!(decoded.is_ok());
+        match decoded.unwrap() {
+            CrabbyWsFromClient::UserMessage {
+                user_id: uid,
+                contents,
+                ..
+            } => {
+                assert_eq!(uid, user_id);
+                assert_eq!(contents, "test message");
+            }
+        }
+    }
+
+    #[test]
+    fn decode_invalid_binary_returns_error() {
+        let ws_msg = WsMessage::Binary(Bytes::from_static(b"not valid json"));
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+        assert!(decoded.is_err());
+    }
+
+    #[test]
+    fn decode_empty_binary_returns_error() {
+        let ws_msg = WsMessage::Binary(Bytes::from_static(b""));
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+        assert!(decoded.is_err());
+    }
+
+    #[test]
+    fn decode_valid_json_wrong_schema_returns_error() {
+        // Valid JSON but not a CrabbyWsFromClient
+        let ws_msg =
+            WsMessage::Binary(Bytes::from_static(b"{\"foo\": \"bar\"}"));
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+        assert!(decoded.is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented")]
+    fn decode_text_message_panics() {
+        let ws_msg = WsMessage::Text("some text".into());
+        let _ = <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented")]
+    fn decode_ping_panics() {
+        let ws_msg = WsMessage::Ping(Bytes::from_static(b"ping"));
+        let _ = <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented")]
+    fn decode_pong_panics() {
+        let ws_msg = WsMessage::Pong(Bytes::from_static(b"pong"));
+        let _ = <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented")]
+    fn decode_close_panics() {
+        let ws_msg = WsMessage::Close(None);
+        let _ = <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg);
+    }
+
+    #[test]
+    fn decode_preserves_group_destination() {
+        let group_id = Uuid::from_u128(999);
+        let original = CrabbyWsFromClient::UserMessage {
+            user_id: Uuid::nil(),
+            dest: Destination::Group { id: group_id },
+            timestamp: String::new(),
+            contents: String::new(),
+        };
+        let ws_msg = make_binary_ws_message(&original);
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg)
+                .unwrap();
+        match decoded {
+            CrabbyWsFromClient::UserMessage { dest, .. } => match dest {
+                Destination::Group { id } => assert_eq!(id, group_id),
+                _ => panic!("Expected Group destination"),
+            },
+        }
+    }
+
+    #[test]
+    fn decode_unicode_contents() {
+        let original = CrabbyWsFromClient::UserMessage {
+            user_id: Uuid::nil(),
+            dest: Destination::Individual { id: Uuid::nil() },
+            timestamp: String::new(),
+            contents: "🦀 crabs are chatty 日本語".to_string(),
+        };
+        let ws_msg = make_binary_ws_message(&original);
+        let decoded =
+            <IncomingWebsocketActor as Decode<WsMessage>>::decode(ws_msg)
+                .unwrap();
+        match decoded {
+            CrabbyWsFromClient::UserMessage { contents, .. } => {
+                assert_eq!(contents, "🦀 crabs are chatty 日本語");
             }
         }
     }
