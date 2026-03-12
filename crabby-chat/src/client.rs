@@ -1,10 +1,13 @@
 #![allow(unused_variables, unused_mut, unused_imports)]
 
-use futures::{
-    stream::{SplitSink, SplitStream, StreamExt},
-    SinkExt,
+use crabby_specs::ws::{
+    incoming::CrabbyWsFromClient, outgoing::CrabbyWsFromServer,
 };
-
+use futures::{
+    SinkExt,
+    stream::{SplitSink, SplitStream, StreamExt},
+};
+use jiff::Timestamp;
 use reqwest::Client;
 use reqwest_websocket::{self, Message, RequestBuilderExt, WebSocket};
 use serde::{Deserialize, Serialize};
@@ -12,9 +15,8 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader, Stdin},
     select,
 };
-use tokio_util::codec::length_delimited;
 use tracing::info;
-use uuid::{NoContext, Timestamp, Uuid};
+use uuid::{NoContext, Timestamp as UuidTimestamp, Uuid};
 #[tokio::main]
 async fn main() {
     let io = tokio::io::stdin();
@@ -32,7 +34,9 @@ async fn main() {
     let (mut sink, mut stream) = websocket.split();
 
     let _send = tokio::spawn(async move { incoming_messages(stream).await });
-    let _recv = tokio::spawn(async move { outgoing_message(sink, reader).await });
+    let id = id();
+    let _recv =
+        tokio::spawn(async move { outgoing_message(sink, reader, &id).await });
 
     select! {
         _ = _send =>return,
@@ -48,65 +52,41 @@ async fn incoming_messages(mut income: SplitStream<WebSocket>) {
                 Message::Text(str) => Vec::from(str),
                 Message::Binary(bin) => bin,
             };
-            let message: UserMessage =
-                serde_json::from_slice(&message).expect("Could not parse websocket message");
+            let message: CrabbyWsFromServer = serde_json::from_slice(&message)
+                .expect("Could not parse websocket message");
             println!("from engine: {:?}", message)
         }
     }
     println!("leaving incoming");
 }
 
-async fn outgoing_message(mut sink: SplitSink<WebSocket, Message>, mut reader: BufReader<Stdin>) {
+async fn outgoing_message(
+    mut sink: SplitSink<WebSocket, Message>,
+    mut reader: BufReader<Stdin>,
+    user_id: &Uuid,
+) {
     let mut buf = String::new();
     while let Ok(read) = reader.read_line(&mut buf).await {
         if read == 0 {
             return;
         }
-        let blah = sink
-            .send(Message::Binary(
-                serde_json::to_vec(&UserMessage::from_string(buf)).unwrap(),
-            ))
-            .await;
+        let message = message_from_str(user_id, buf);
+        let serialized = serde_json::to_vec_pretty(&message).unwrap();
+        let blah = sink.send(Message::Binary(serialized)).await;
         buf = String::new();
     }
 }
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ChatMessage {
-    content: MessageContent,
-    // id: Uuid,
-    from: Uuid,
-    // destination: Uuid,
+
+fn message_from_str(user_id: &Uuid, message: String) -> CrabbyWsFromClient {
+    CrabbyWsFromClient::UserMessage {
+        user_id: user_id.clone(),
+        dest: crabby_specs::ws::common::Destination::Individual { id: id() },
+        timestamp: Timestamp::now().to_string(),
+        contents: message,
+    }
 }
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) enum MessageContent {
-    String(String),
-    File(Vec<u8>),
-    Photo(Vec<u8>),
-}
+
 fn id() -> Uuid {
-    let ts = Timestamp::now(NoContext);
+    let ts = UuidTimestamp::now(NoContext);
     Uuid::new_v7(ts)
-}
-impl ChatMessage {
-    fn from_string(string: String) -> Self {
-        ChatMessage {
-            content: MessageContent::String(string),
-            from: id(),
-        }
-    }
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserMessage {
-    pub from: Uuid,
-    pub to: Uuid,
-    pub contents: String,
-}
-impl UserMessage {
-    fn from_string(string: String) -> Self {
-        UserMessage {
-            contents: string,
-            from: id(),
-            to: id(),
-        }
-    }
 }

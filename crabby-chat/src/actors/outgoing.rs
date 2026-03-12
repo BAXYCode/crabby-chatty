@@ -1,22 +1,21 @@
 use crate::{
     actors::{
-        converter::outgoing::{Encode, UserMessageToWsMessage},
+        converter::outgoing::{Encode, ServerToTransport},
         engine::EngineActor,
     },
-    messages::{UserConnected, UserMessage},
+    messages::internal::UserConnected,
 };
-use axum::{body::Bytes, extract::ws::Message as WsMessage, extract::ws::WebSocket};
-use eyre::Ok as EyreOk;
-use futures::{Sink, SinkExt, Stream, stream::SplitSink};
+use axum::{extract::ws::Message as WsMessage, extract::ws::WebSocket};
+use crabby_specs::ws::outgoing::CrabbyWsFromServer;
+use futures::{Sink, SinkExt, stream::SplitSink};
 use kameo::{Actor, actor::ActorRef, error::Infallible, prelude::Message};
-use serde::Serialize;
-use std::{marker::PhantomData, process::Output};
+use std::marker::PhantomData;
 use uuid::Uuid;
 pub struct OutgoingMessageActor<S, I, C>
 where
     S: Sink<I> + Send + Sync + 'static,
     I: Send + Sync + 'static,
-    C: Encode<UserMessage, Output = I> + Send + Sync + 'static,
+    C: Encode<CrabbyWsFromServer, Output = I> + Send + Sync + 'static,
 {
     sink: S,
     _phantom: PhantomData<I>,
@@ -24,10 +23,19 @@ where
     converter: C,
     user_id: Uuid,
 }
-pub type OutgoingWebsocketActor =
-    OutgoingMessageActor<SplitSink<WebSocket, WsMessage>, WsMessage, UserMessageToWsMessage>;
+pub type OutgoingWebsocketActor = OutgoingMessageActor<
+    SplitSink<WebSocket, WsMessage>,
+    WsMessage,
+    ServerToTransport,
+>;
 
-impl OutgoingMessageActor<SplitSink<WebSocket, WsMessage>, WsMessage, UserMessageToWsMessage> {
+impl
+    OutgoingMessageActor<
+        SplitSink<WebSocket, WsMessage>,
+        WsMessage,
+        ServerToTransport,
+    >
+{
     pub fn new(
         sink: SplitSink<WebSocket, WsMessage>,
         engine_ref: ActorRef<EngineActor>,
@@ -36,7 +44,7 @@ impl OutgoingMessageActor<SplitSink<WebSocket, WsMessage>, WsMessage, UserMessag
         Self {
             sink,
             engine: engine_ref,
-            converter: UserMessageToWsMessage,
+            converter: ServerToTransport,
             user_id,
             _phantom: PhantomData::default(),
         }
@@ -47,7 +55,7 @@ impl<S, I, C> Actor for OutgoingMessageActor<S, I, C>
 where
     S: SinkExt<I> + Send + Sync + 'static + futures::Sink<I> + Unpin,
     I: Send + Sync + 'static,
-    C: Encode<UserMessage, Output = I> + Send + Sync,
+    C: Encode<CrabbyWsFromServer, Output = I> + Send + Sync,
 {
     type Args = Self;
 
@@ -64,35 +72,20 @@ where
         Ok(args)
     }
 }
-// impl<S, C> Encode<UserMessage> for OutgoingMessageActor<S, WsMessage, C>
-// where
-//     S: Send + Sync + 'static + Sink<WsMessage> + Unpin,
-//     C: Encode<UserMessage, Output = WsMessage> + Send + Sync,
-// {
-//     type Output = WsMessage;
-//
-//     fn encode(item: UserMessage) -> eyre::Result<Self::Output> {
-//         //TODO: very bad error handling
-//         let serialized = serde_json::to_vec(&item).unwrap();
-//         let bytes = WsMessage::Binary(Bytes::copy_from_slice(serialized.as_slice()));
-//         EyreOk(bytes)
-//     }
-// }
 
-impl<S, I, C> Message<UserMessage> for OutgoingMessageActor<S, I, C>
+impl<S, I, C> Message<CrabbyWsFromServer> for OutgoingMessageActor<S, I, C>
 where
     S: SinkExt<I> + Send + Sync + 'static + futures::Sink<I> + Unpin,
     I: Send + Sync + 'static,
-    C: Encode<UserMessage, Output = I> + Send + Sync,
+    C: Encode<CrabbyWsFromServer, Output = I> + Send + Sync,
 {
     type Reply = ();
 
     async fn handle(
         &mut self,
-        msg: UserMessage,
+        msg: CrabbyWsFromServer,
         ctx: &mut kameo::prelude::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        println!("inside outgoing before encode");
         if let Ok(encoded) = C::encode(msg) {
             println!("inside outgoing before sink");
             let _ = self.sink.send(encoded).await;

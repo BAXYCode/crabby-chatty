@@ -44,6 +44,82 @@
   },
   "components": {
     "messages": {
+      "ChatMessage": {
+        "name": "ChatMessage",
+        "title": "ChatMessage",
+        "description": "Server sent chat message",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "properties": {
+            "contents": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "dest": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "Individual"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "Group"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ]
+                }
+              ]
+            },
+            "message_id": {
+              "type": "integer",
+              "minimum": 0,
+              "format": "uint64"
+            },
+            "type": {
+              "type": "string",
+              "const": "ChatMessage"
+            },
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "type",
+            "message_id",
+            "user_id",
+            "dest",
+            "timestamp",
+            "contents"
+          ]
+        }
+      },
       "UserMessage": {
         "name": "UserMessage",
         "title": "UserMessage",
@@ -57,13 +133,13 @@
                 {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
                     "type": {
                       "type": "string",
                       "const": "Individual"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
                     }
                   },
                   "required": [
@@ -74,13 +150,13 @@
                 {
                   "type": "object",
                   "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "Group"
-                    },
                     "id": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "Group"
                     }
                   },
                   "required": [
@@ -90,99 +166,23 @@
                 }
               ]
             },
-            "user_id": {
-              "type": "string",
-              "format": "uuid"
+            "timestamp": {
+              "type": "string"
             },
             "type": {
               "type": "string",
               "const": "UserMessage"
             },
-            "timestamp": {
-              "type": "string"
-            },
-            "contents": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "user_id",
-            "dest",
-            "timestamp",
-            "contents"
-          ]
-        }
-      },
-      "ChatMessage": {
-        "name": "ChatMessage",
-        "title": "ChatMessage",
-        "description": "Server sent chat message",
-        "contentType": "application/json",
-        "payload": {
-          "type": "object",
-          "properties": {
-            "timestamp": {
-              "type": "string"
-            },
             "user_id": {
               "type": "string",
               "format": "uuid"
             },
-            "message_id": {
-              "type": "integer",
-              "minimum": 0,
-              "format": "uint64"
-            },
             "contents": {
               "type": "string"
-            },
-            "dest": {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "type": {
-                      "type": "string",
-                      "const": "Individual"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "id"
-                  ]
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "Group"
-                    },
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "id"
-                  ]
-                }
-              ]
-            },
-            "type": {
-              "type": "string",
-              "const": "ChatMessage"
             }
           },
           "required": [
             "type",
-            "message_id",
             "user_id",
             "dest",
             "timestamp",

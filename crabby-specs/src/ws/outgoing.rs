@@ -6,7 +6,9 @@ use crate::ws::common::Destination;
 
 //Any other type of websocket message that I will be sending back to the client will be defined
 //inside of this enum
-#[derive(JsonSchema, ToAsyncApiMessage, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, JsonSchema, ToAsyncApiMessage, Serialize, Deserialize,
+)]
 #[serde(tag = "type")]
 pub enum CrabbyWsFromServer {
     #[asyncapi(description = "Server sent chat message")]

@@ -2,42 +2,34 @@
 mod actors;
 mod client;
 mod error;
-mod event;
-mod event_types;
 mod handle;
+pub mod id;
 pub mod messages;
 use axum::{
-    extract::{
-        ConnectInfo, FromRef, State, WebSocketUpgrade,
-        ws::{Message, WebSocket},
-    },
+    extract::{ConnectInfo, FromRef, State, WebSocketUpgrade, ws::WebSocket},
     response::IntoResponse,
     routing::get,
 };
-use crabby_core::engine::Engine;
 use crabby_core::shutdown::shutdown_signal;
-use error::ChatError;
-use event::ServerEvent;
-use event_types::messages::Message as ChatMessage;
-use futures::{SinkExt, StreamExt, stream::SplitSink};
-use handle::Handler;
+use ferroid::{generator::AtomicSnowflakeGenerator, time::MonotonicClock};
+use futures::StreamExt;
 use hashbrown::HashMap;
 use kameo::actor::{ActorRef, Spawn};
 use std::net::SocketAddr;
-use tokio::{
-    net::TcpListener,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender},
-};
-use tracing::{error, info, instrument, warn};
+use tokio::net::TcpListener;
+use tracing::{info, instrument};
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use uuid::{NoContext, Timestamp, Uuid};
 
-use crate::actors::{
-    engine::EngineActor,
-    incoming::{IncomingMessageActor, IncomingWebsocketActor},
-    outgoing::OutgoingWebsocketActor,
+use crate::{
+    actors::{
+        engine::EngineActor,
+        incoming::{IncomingMessageActor, IncomingWebsocketActor},
+        outgoing::OutgoingWebsocketActor,
+    },
+    id::IdGenerator,
 };
 
 #[tokio::main]
@@ -57,14 +49,16 @@ async fn test() {
         )
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
-    // let (sx, rx) = tokio::sync::mpsc::unbounded_channel::<ServerEvent>();
-
-    let mut engine = EngineActor::new(HashMap::default());
+    let id_gen = IdGenerator::new(AtomicSnowflakeGenerator::new(
+        0,
+        MonotonicClock::default(),
+    ));
+    let engine = EngineActor::new(HashMap::default(), id_gen);
+    //spawn Engine
     let engine_ref = EngineActor::spawn(engine);
     let state = SharedState {
         channel: ChannelState { inner: engine_ref },
     };
-    // let _run = tokio::task::spawn(async move { engine.run().await });
     let listener = TcpListener::bind("0.0.0.0:6969").await.unwrap();
     let router = axum::Router::new()
         .route("/ws", get(websocket))
@@ -93,6 +87,7 @@ async fn websocket_handler(
     mut state: ChannelState,
 ) {
     let (mut sink, mut stream) = ws.split();
+    //Later we extract will user id using some kind of interceptor
     let id = crate::id();
     let outbox =
         OutgoingWebsocketActor::new(sink, state.inner.clone(), id.clone());
@@ -102,99 +97,8 @@ async fn websocket_handler(
     let stream = Box::pin(stream.filter_map(|item| async move { item.ok() }));
     let inbox_ref = IncomingWebsocketActor::spawn(inbox);
     inbox_ref.attach_stream(stream, (), ());
-
-    // let (recv, id) = register(&mut state, None).await.unwrap();
-    // info!("User id: {:?}", id);
-    // // Task that listens on the websocket for incoming messages and uses "ChannelState" to send those messages to the Engine
-    // let _recv = tokio::spawn(async move { incoming_handler(stream, id, state).await });
-    // // Task that waits for outgoing messages coming from the Engine to be sent to client
-    // let _send = tokio::spawn(async move { outgoing_handler(sink, recv).await });
-
-    // select! {_ = _send =>{warn!("send task returned") ;},
-    // _ = _recv => {warn!("recv task returned");} }
 }
 
-async fn outgoing_handler(
-    mut sink: SplitSink<WebSocket, Message>,
-    mut recv: UnboundedReceiver<ChatMessage>,
-) {
-    while let Some(message) = recv.recv().await {
-        info!("Message leaving engine");
-        let serialized = serde_json::to_vec(&message).unwrap();
-        let res = sink.send(Message::from(serialized)).await;
-        if let Some(err) = res.err() {
-            error!("{:?}", err);
-            return;
-        }
-    }
-    warn!("Exiting outgoing handler");
-}
-// async fn incoming_handler(mut income: SplitStream<WebSocket>, id: Uuid, state: ChannelState) {
-//     let mut channel = state.inner;
-//     info!("inside incoming handler");
-//     while let Some(serialized) = income.next().await {
-//         info!("received: {:?}", serialized);
-//         if let Ok(message) = serialized {
-//             let message: ChatMessage = serde_json::from_slice(&message.into_data())
-//                 .expect("Could not parse websocket message");
-//             info!("{:?}", message);
-//             // TODO: better error handling por fav
-//             let res = channel.send(message.into());
-//             if let Some(err) = res.err() {
-//                 error!(
-//                     "There was an error sending a message to user {:?}, exiting handler.",
-//                     id
-//                 );
-//                 return;
-//             }
-//         }
-//     }
-//     warn!("leaving handler")
-// }
-struct ChatEngine {
-    map: hashbrown::HashMap<Uuid, UnboundedSender<ChatMessage>>,
-    rx: UnboundedReceiver<ServerEvent>,
-    db: hashbrown::HashMap<Uuid, User>,
-}
-impl ChatEngine {
-    fn build(rx: UnboundedReceiver<ServerEvent>) -> Self {
-        Self {
-            map: hashbrown::HashMap::new(),
-            rx,
-            db: hashbrown::HashMap::new(),
-        }
-    }
-    fn if_error(res: Result<(), ChatError>) {
-        if let Some(err) = res.err() {
-            warn!("{:?}", err);
-        }
-    }
-}
-impl Engine for ChatEngine {
-    async fn run(&mut self) {
-        while let Some(event) = self.rx.recv().await {
-            warn!("event received: {:?}", event);
-            match event {
-                ServerEvent::Connected(connected) => {
-                    let handled = self.handle(connected).await;
-                    Self::if_error(handled);
-                }
-                ServerEvent::Disconnected(disconnect) => {
-                    Self::if_error(self.handle(disconnect).await);
-                }
-                ServerEvent::ChatMessage(message) => {
-                    Self::if_error(self.handle(message).await);
-                }
-            }
-        }
-        warn!("exiting run");
-    }
-}
-#[derive(Debug, Clone)]
-struct User {
-    email: String,
-    password: String,
-}
 #[derive(Debug, Clone)]
 struct ChannelState {
     inner: ActorRef<EngineActor>,
@@ -213,23 +117,3 @@ fn id() -> Uuid {
     let ts = Timestamp::now(NoContext);
     Uuid::new_v7(ts)
 }
-// Function to inform the engine of a new user being connected
-// #[instrument]
-// async fn register(
-//     state: &mut ChannelState,
-//     id: Option<Uuid>,
-// ) -> Result<(UnboundedReceiver<ChatMessage>, Uuid), ChatError> {
-//     // channels for communication between the thread handling client connection and engine and vice versa
-//     let (mut sender, recv) = unbounded_channel::<ChatMessage>();
-//     let id = if let Some(id) = id { id } else { crate::id() };
-//
-//     info!("registering user with id: {:?}", id);
-//     let connected = event_types::connect::Connect::new(sender, id);
-//     let connect = ServerEvent::Connected(connected);
-//     // Send notification to Engine that new user is connected, this is his Id and channel to send outgoing messages
-//     let res = state.inner.send(connect);
-//     if let Some(err) = res.err() {
-//         error!("error sending channel: {:?}", err);
-//     }
-//     Ok((recv, id))
-// }

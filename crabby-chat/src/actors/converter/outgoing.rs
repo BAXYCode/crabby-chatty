@@ -1,20 +1,20 @@
 use axum::{body::Bytes, extract::ws::Message};
+use crabby_specs::ws::outgoing::CrabbyWsFromServer;
 use eyre::Result;
-
-use crate::messages::UserMessage;
 
 pub trait Encode<I> {
     type Output;
     fn encode(item: I) -> Result<Self::Output>;
 }
-pub struct UserMessageToWsMessage;
+pub struct ServerToTransport;
 
-impl Encode<UserMessage> for UserMessageToWsMessage {
+impl Encode<CrabbyWsFromServer> for ServerToTransport {
     type Output = Message;
 
-    fn encode(item: UserMessage) -> Result<Self::Output> {
+    fn encode(item: CrabbyWsFromServer) -> Result<Self::Output> {
         let serialized = serde_json::to_vec(&item).unwrap();
-        let bytes = Message::Binary(Bytes::copy_from_slice(serialized.as_slice()));
+        let bytes =
+            Message::Binary(Bytes::copy_from_slice(serialized.as_slice()));
         Ok(bytes)
     }
 }

@@ -1,4 +1,5 @@
 use axum::extract::ws::{Message as WsMessage, WebSocket};
+use crabby_specs::ws::incoming::CrabbyWsFromClient;
 use eyre::Ok;
 use futures::{Stream, stream::SplitStream};
 use kameo::{
@@ -8,10 +9,7 @@ use kameo::{
 use std::{marker::PhantomData, pin::Pin};
 use uuid::Uuid;
 
-use crate::{
-    actors::{converter::incoming::Decode, engine::EngineActor},
-    messages::internal::UserMessage,
-};
+use crate::actors::{converter::incoming::Decode, engine::EngineActor};
 //Because axum's Websocket stream returns Result<Item,Error> I need to filter_map to get a stream
 //of only Items
 pub type IncomingWebsocketActor = IncomingMessageActor<
@@ -70,7 +68,7 @@ where
     S: Stream<Item = I> + Send + 'static,
     I: Send + Sync + 'static,
 {
-    type Output = UserMessage;
+    type Output = CrabbyWsFromClient;
 
     type Error = Infallible;
 
@@ -78,7 +76,7 @@ where
         match item {
             WsMessage::Text(_) => unimplemented!(),
             WsMessage::Binary(bytes) => {
-                let message: UserMessage =
+                let message: CrabbyWsFromClient =
                     serde_json::from_slice(bytes.as_ref())?;
                 eyre::Ok(message)
             }
@@ -88,27 +86,12 @@ where
         }
     }
 }
-///This is just a impl for testing the behaviour of the IncomingMessageActor
-#[cfg(test)]
-impl<I, S> Decode<UserMessage> for IncomingMessageActor<I, S>
-where
-    S: Stream<Item = I> + Send + 'static,
-    I: Send + Sync + 'static,
-{
-    type Output = UserMessage;
-
-    type Error = Infallible;
-
-    fn decode(item: UserMessage) -> eyre::Result<Self::Output> {
-        Ok(item)
-    }
-}
 
 impl<I, S> Message<StreamMessage<I, (), ()>> for IncomingMessageActor<I, S>
 where
     S: Stream<Item = I> + Send + 'static,
     I: Send + Sync + 'static,
-    Self: Decode<I, Output = UserMessage> + Send,
+    Self: Decode<I, Output = CrabbyWsFromClient> + Send,
 {
     type Reply = ();
 

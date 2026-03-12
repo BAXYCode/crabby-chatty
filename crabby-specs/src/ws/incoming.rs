@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::ws::common::Destination;
 
-#[derive(JsonSchema, ToAsyncApiMessage, Serialize, Deserialize)]
+#[derive(Clone, JsonSchema, ToAsyncApiMessage, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum CrabbyWsFromClient {
     #[asyncapi(description = "User sent chat message")]
