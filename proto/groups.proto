@@ -1,0 +1,55 @@
+syntax = "proto3";
+package groups;
+
+service GroupService {
+  //Group membeship related queries
+  rpc CheckMembership(CheckMembershipRequest) returns (CheckMembershipResponse);
+  rpc ListGroupMembers(ListGroupMembersRequest) returns (ListGroupMembersResponse);
+  rpc BatchListGroupMembers(BatchListGroupMembersRequest) returns (BatchListGroupMembersResponse);
+}
+
+message CheckMembershipRequest {
+  string user_id = 1;
+}
+message ListGroupMembersRequest {
+  string user_id = 1;
+  string group_id = 2;
+}
+message BatchListGroupMembersRequest {
+  repeated string group_id = 1;
+}
+
+message AddMemberRequest {
+  string user_id = 1;
+  string group_id = 2;
+  //who is making this add member request
+  string actor_id = 3;
+}
+message RemoveMemberRequest {}
+message LeaveGroupRequest {}
+
+message CheckMembershipResponse {
+  bool membership = 1;
+}
+message ListGroupMembersResponse {
+  repeated string user_id = 1;
+}
+
+//Array of member IDs for a given group
+message GroupMembers {
+  repeated string member = 1;
+}
+message BatchListGroupMembersResponse {
+  map<string, GroupMembers> response = 1;
+}
+
+
+message GetMembershipSnapshotRequest {
+  string group_id = 1;
+}
+message GetGroupMembershipVersionRequest {
+  string group_id = 1;
+}
+message GetGroupMembershipVersionResponse {
+  uint64 ver =1;
+}
