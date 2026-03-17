@@ -8,3 +8,18 @@ axum = { version = "0.8.8", features = ["macros"] }
 axum-extra = { version = "0.12.5", features = ["typed-routing"] }
 tonic = "0.14.5"
 tonic-build = "0.14.5"
+tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
+tokio-macros = "2.5.0"
+utoipa = { version = "5.4.0", features = [
+    "axum_extras",
+    "auto_into_responses",
+    "openapi_extensions",
+] }
+uuid = { version = "1.22.0", features = ["serde", "v7"] }
+schemars = "1.2.1"
+serde.workspace = true
+serde_json.workspace = true
+eyre.workspace = true
+into-response = "0.3.1"
+sqlx.workspace = true
+async-trait = "0.1.89"

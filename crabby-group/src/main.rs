@@ -1,7 +1,6 @@
 mod api;
-mod database;
+pub(crate) mod database;
 
 fn main() {
-
     println!("Hello, world!");
 }

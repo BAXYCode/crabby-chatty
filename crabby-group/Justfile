@@ -1,0 +1,15 @@
+default:
+    --list
+t:
+    pwd
+    ls -la
+    find . -maxdepth 1 -type f | sort
+pg-u:
+    docker compose -f ./pg-compose.yaml  up 
+pg-d:
+    docker compose -f ./pg-compose.yaml down
+clean: pg-d
+    docker volume rm crabby-group_pgdata
+migrate:
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" sqlx migrate run
+    

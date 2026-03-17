@@ -1,17 +1,27 @@
+use std::sync::Arc;
+
 use axum::{
-    Json,
+    Error, Json,
+    extract::{FromRef, State},
     http::StatusCode,
     response::{Response, Result},
 };
 use axum_extra::routing::{RouterExt, TypedPath};
 use into_response::IntoResponse;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use sqlx::types::Uuid;
 
-#[derive(Deserialize, Serialize, Debug)]
+use crate::database::repo::DatabaseRepo;
+
+#[derive(FromRef)]
+pub struct StorageState {
+    pub store: Arc<dyn DatabaseRepo>,
+}
+
+#[derive(Deserialize, Serialize, Debug, sqlx::Type)]
 #[serde(transparent)]
-
-pub(crate) struct GroupId(Uuid);
+#[sqlx(transparent)]
+pub(crate) struct GroupId(pub Uuid);
 
 impl ToString for GroupId {
     fn to_string(&self) -> String {
@@ -19,9 +29,10 @@ impl ToString for GroupId {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, sqlx::Type)]
 #[serde(transparent)]
-pub(crate) struct MemberId(Uuid);
+#[sqlx(transparent)]
+pub(crate) struct MemberId(pub Uuid);
 
 impl ToString for MemberId {
     fn to_string(&self) -> String {
@@ -34,51 +45,70 @@ impl ToString for MemberId {
 struct CreateGroupRequest;
 
 #[derive(Deserialize)]
-
 pub(crate) struct CreateGroupPayload {
-    creator_id: Uuid,
-    group_members: Vec<MemberId>,
+    pub creator_id: Uuid,
+    pub group_members: Vec<MemberId>,
 }
 
 async fn create_group(
+    State(state): State<StorageState>,
     _: CreateGroupRequest,
     Json(create_request): Json<CreateGroupPayload>,
 ) -> Result<GroupId> {
-    todo!()
+    let group_id = state
+        .store
+        .create_group(create_request)
+        .await
+        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(GroupId(group_id))
 }
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/group/{group_id}/add")]
+
 pub(crate) struct AddUserToGroupRequest {
-    group_id: GroupId,
+    pub group_id: GroupId,
 }
 
 pub(crate) struct AddUserToGroupPayload {
-    actor_id: MemberId,
-    new_member_id: MemberId,
+    pub actor_id: MemberId,
+    pub new_member_id: MemberId,
 }
 
 async fn add_user(
+    State(state): State<StorageState>,
     AddUserToGroupRequest { group_id }: AddUserToGroupRequest,
     Json(payload): Json<AddUserToGroupPayload>,
-) -> Result<StatusCode> {
-    todo!()
+) -> Result<bool> {
+    let done = state
+        .store
+        .add_user_to_group(payload, group_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(true)
 }
 
 #[derive(TypedPath, Deserialize)]
 #[typed_path("/group/{group_id}/remove/{user_id}")]
+
 pub(crate) struct RemoveUserFromGroupRequest {
-    group_id: GroupId,
-    user_id: MemberId,
+    pub group_id: GroupId,
+    pub user_id: MemberId,
 }
 
 pub(crate) struct RemoveUserFromGroupPayload {
-    actor_id: MemberId,
+    pub actor_id: MemberId,
 }
 
 async fn remove_user_from_group(
+    State(state): State<StorageState>,
     request: RemoveUserFromGroupRequest,
-    Json(actor_id): Json<RemoveUserFromGroupPayload>,
-) -> Result<StatusCode> {
-    todo!()
+    Json(payload): Json<RemoveUserFromGroupPayload>,
+) -> Result<bool> {
+    let done = state
+        .store
+        .remove_user_from_group(payload.actor_id, request)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(done)
 }
