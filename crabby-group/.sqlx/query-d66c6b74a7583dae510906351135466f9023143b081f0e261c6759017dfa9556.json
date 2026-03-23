@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role as \"role: Role\" FROM group_membership WHERE group_id = $1 AND user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role: Role",
+        "type_info": {
+          "Custom": {
+            "name": "role",
+            "kind": {
+              "Enum": [
+                "admin",
+                "member"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "group_membership",
+            "name": "role"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "d66c6b74a7583dae510906351135466f9023143b081f0e261c6759017dfa9556"
+}

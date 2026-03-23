@@ -1,6 +1,6 @@
 unstable_features = true
 
-blank_lines_lower_bound = 1
+# blank_lines_lower_bound = 1
 
 format_strings = true
 

@@ -1,27 +1,27 @@
 use std::sync::Arc;
 
 use axum::{
-    Error, Json,
-    extract::{FromRef, State},
+    Json,
+    extract::{FromRef, Path, State},
     http::StatusCode,
-    response::{Response, Result},
+    routing::post,
 };
-use axum_extra::routing::{RouterExt, TypedPath};
-use into_response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_axum::router::OpenApiRouter;
 
-use crate::database::repo::DatabaseRepo;
+use crate::{database::repo::DatabaseRepo, error::GroupError};
 
-#[derive(FromRef)]
+#[derive(FromRef, Clone)]
 pub struct StorageState {
     pub store: Arc<dyn DatabaseRepo>,
 }
 
-#[derive(Deserialize, Serialize, Debug, sqlx::Type)]
+#[derive(Deserialize, Serialize, Debug, sqlx::Type, ToSchema)]
 #[serde(transparent)]
 #[sqlx(transparent)]
-pub(crate) struct GroupId(pub Uuid);
+pub struct GroupId(pub Uuid);
 
 impl ToString for GroupId {
     fn to_string(&self) -> String {
@@ -29,10 +29,10 @@ impl ToString for GroupId {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, sqlx::Type)]
+#[derive(Deserialize, Serialize, Debug, sqlx::Type, ToSchema)]
 #[serde(transparent)]
 #[sqlx(transparent)]
-pub(crate) struct MemberId(pub Uuid);
+pub struct MemberId(pub Uuid);
 
 impl ToString for MemberId {
     fn to_string(&self) -> String {
@@ -40,75 +40,93 @@ impl ToString for MemberId {
     }
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/group/create")]
-struct CreateGroupRequest;
-
-#[derive(Deserialize)]
-pub(crate) struct CreateGroupPayload {
-    pub creator_id: Uuid,
+#[derive(ToSchema, Deserialize, Debug, Serialize)]
+pub struct CreateGroupPayload {
+    pub creator_id: MemberId,
     pub group_members: Vec<MemberId>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/group",
+    responses(
+        (status = 201, description = "Group created succesfully"),
+        (status = 500, description = "Internal server error")
+    ))]
 async fn create_group(
     State(state): State<StorageState>,
-    _: CreateGroupRequest,
     Json(create_request): Json<CreateGroupPayload>,
-) -> Result<GroupId> {
-    let group_id = state
-        .store
-        .create_group(create_request)
-        .await
-        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(GroupId(group_id))
+) -> Result<(StatusCode, Json<Option<GroupId>>), GroupError> {
+    let id = state.store.create_group(create_request).await?;
+    Ok((StatusCode::CREATED, Json(Some(GroupId(id)))))
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/group/{group_id}/add")]
-
-pub(crate) struct AddUserToGroupRequest {
+#[derive(ToSchema, Deserialize, IntoParams, Serialize)]
+pub struct AddUserToGroupParams {
     pub group_id: GroupId,
 }
-
-pub(crate) struct AddUserToGroupPayload {
+#[derive(ToSchema, Deserialize, Serialize, Debug)]
+pub struct AddUserToGroupPayload {
     pub actor_id: MemberId,
     pub new_member_id: MemberId,
 }
 
+#[utoipa::path(
+    post,
+    path = "/group/{group_id}/members/{member_id}",
+    params(AddUserToGroupParams),
+    responses(
+        (status = 204, description = "User added successfully"),
+        (status = 404, description = "Membership not found"),
+        (status = 409, description = "User is already a member of the group"),
+        (status = 500, description = "Internal server error")
+    ))]
 async fn add_user(
     State(state): State<StorageState>,
-    AddUserToGroupRequest { group_id }: AddUserToGroupRequest,
+    Path(AddUserToGroupParams { group_id }): Path<AddUserToGroupParams>,
     Json(payload): Json<AddUserToGroupPayload>,
-) -> Result<bool> {
-    let done = state
-        .store
-        .add_user_to_group(payload, group_id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(true)
+) -> Result<StatusCode, GroupError> {
+    state.store.add_user_to_group(payload, group_id).await?;
+    Ok(StatusCode::RESET_CONTENT)
 }
 
-#[derive(TypedPath, Deserialize)]
-#[typed_path("/group/{group_id}/remove/{user_id}")]
-
-pub(crate) struct RemoveUserFromGroupRequest {
+#[derive(IntoParams, Deserialize, Serialize)]
+pub struct RemoveUserFromGroupParams {
     pub group_id: GroupId,
-    pub user_id: MemberId,
+    pub member_id: MemberId,
 }
 
-pub(crate) struct RemoveUserFromGroupPayload {
+#[derive(ToSchema, Deserialize, Serialize)]
+pub struct RemoveUserFromGroupPayload {
     pub actor_id: MemberId,
 }
-
-async fn remove_user_from_group(
+#[utoipa::path(
+    delete,
+    path = "/group/{group_id}/members/{member_id}",
+    params(RemoveUserFromGroupParams),
+    responses(
+        (status = 204, description = "User removed successfully"),
+        (status = 404, description = "Membership not found"),
+        (status = 403, description = "Not allowed to remove this user"),
+        (status = 500, description = "Internal server error"))
+)]
+async fn remove_user(
     State(state): State<StorageState>,
-    request: RemoveUserFromGroupRequest,
+    Path(request): Path<RemoveUserFromGroupParams>,
     Json(payload): Json<RemoveUserFromGroupPayload>,
-) -> Result<bool> {
-    let done = state
-        .store
-        .remove_user_from_group(payload.actor_id, request)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(done)
+) -> Result<StatusCode, GroupError> {
+    state.store.remove_user_from_group(payload, request).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub fn router() -> OpenApiRouter<StorageState> {
+    let group_routes = OpenApiRouter::new().route("/group", post(create_group));
+
+    let actions = OpenApiRouter::new().route(
+        "/{group_id}/members/{member_id}",
+        post(add_user).delete(remove_user),
+    );
+
+    let router = group_routes.nest("/group", actions);
+    router
 }
