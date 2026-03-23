@@ -13,15 +13,14 @@ message RegisterRequest {
   string username = 2;
   string password = 3;
 }
-message RegisterSuccess{
+message RegisterSuccess {
   string bearer = 1;
   string refresh = 2;
-  string username =3;
-  string user_id =4;
+  string username = 3;
+  string user_id = 4;
 }
 message RegisterResponse {
-
-    RegisterSuccess response = 1;
+  RegisterSuccess response = 1;
 }
 
 message LoginRequest {
@@ -29,28 +28,28 @@ message LoginRequest {
   string password = 2;
 }
 message LoginSuccess {
-  string username=1;
-  string user_id =2;
+  string username = 1;
+  string user_id = 2;
 }
 message LoginResponse {
-    LoginSuccess login_success = 1;
+  LoginSuccess login_success = 1;
 }
 
-message RefreshRequest{
+message RefreshRequest {
   string refresh = 1;
   string user_id = 2;
 }
-message RefreshSuccess{
-  string bearer =1;
-  optional string refresh =2;
+message RefreshSuccess {
+  string bearer = 1;
+  optional string refresh = 2;
 }
-message RefreshResponse{
-  RefreshSuccess refresh =1 ;
+message RefreshResponse {
+  RefreshSuccess refresh = 1;
 }
 
-message PublicKeyRequest{
-string req =1;  
+message PublicKeyRequest {
+  string req = 1;
 }
-message PublicKeyResponse{
-string paserk = 1;
+message PublicKeyResponse {
+  string paserk = 1;
 }
