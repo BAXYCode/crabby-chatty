@@ -4,12 +4,11 @@ use axum::{
     Json,
     extract::{FromRef, Path, State},
     http::StatusCode,
-    routing::post,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
 use utoipa::{IntoParams, ToSchema};
-use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{database::repo::DatabaseRepo, error::GroupError};
 
@@ -120,13 +119,7 @@ async fn remove_user(
 }
 
 pub fn router() -> OpenApiRouter<StorageState> {
-    let group_routes = OpenApiRouter::new().route("/group", post(create_group));
-
-    let actions = OpenApiRouter::new().route(
-        "/{group_id}/members/{member_id}",
-        post(add_user).delete(remove_user),
-    );
-
-    let router = group_routes.nest("/group", actions);
-    router
+    OpenApiRouter::new()
+        .routes(routes!(create_group))
+        .routes(routes!(add_user, remove_user))
 }

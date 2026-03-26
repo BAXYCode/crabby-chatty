@@ -1,15 +1,19 @@
 default:
     --list
-t:
-    pwd
-    ls -la
-    find . -maxdepth 1 -type f | sort
+generate-spec:
+    SQLX_OFFLINE=true cargo run --bin generate_openapi
 pg-u:
     docker compose -f ./pg-compose.yaml  up 
 pg-d:
     docker compose -f ./pg-compose.yaml down
 clean: pg-d
     docker volume rm crabby-group_pgdata
+    rm -rf data
+#Migrate database tables
 migrate:
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" sqlx migrate run
-    
+# add data for manual grpc api testing
+seed fixture="grpc_testing":
+    export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" && psql "$DATABASE_URL" -f tests/fixtures/{{fixture}}.sql
+docker:
+    SQLX_OFFLINE=true cargo build --release --package crabby-group && cd .. && docker build -f docker/group.Dockerfile -t crabby-group .

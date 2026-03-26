@@ -1,0 +1,177 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "utoipa-axum",
+    "description": "Utoipa's axum bindings for seamless integration for the two",
+    "contact": {
+      "name": "Benjamin",
+      "email": "lainebenjamin3@gmail.com"
+    },
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/group": {
+      "post": {
+        "operationId": "create_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Group created succesfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/group/{group_id}/members/{member_id}": {
+      "post": {
+        "operationId": "add_user",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GroupId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddUserToGroupPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "User added successfully"
+          },
+          "404": {
+            "description": "Membership not found"
+          },
+          "409": {
+            "description": "User is already a member of the group"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "remove_user",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GroupId"
+            }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MemberId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveUserFromGroupPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "User removed successfully"
+          },
+          "403": {
+            "description": "Not allowed to remove this user"
+          },
+          "404": {
+            "description": "Membership not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddUserToGroupPayload": {
+        "type": "object",
+        "required": [
+          "actor_id",
+          "new_member_id"
+        ],
+        "properties": {
+          "actor_id": {
+            "$ref": "#/components/schemas/MemberId"
+          },
+          "new_member_id": {
+            "$ref": "#/components/schemas/MemberId"
+          }
+        }
+      },
+      "CreateGroupPayload": {
+        "type": "object",
+        "required": [
+          "creator_id",
+          "group_members"
+        ],
+        "properties": {
+          "creator_id": {
+            "$ref": "#/components/schemas/MemberId"
+          },
+          "group_members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberId"
+            }
+          }
+        }
+      },
+      "MemberId": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "RemoveUserFromGroupPayload": {
+        "type": "object",
+        "required": [
+          "actor_id"
+        ],
+        "properties": {
+          "actor_id": {
+            "$ref": "#/components/schemas/MemberId"
+          }
+        }
+      }
+    }
+  }
+}

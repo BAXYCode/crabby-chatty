@@ -2,6 +2,7 @@
 name = "crabby-group"
 version = "0.1.0"
 edition = "2024"
+exclude = ["data", "logs"]
 
 [lib]
 name = "crabby_group"
@@ -15,7 +16,8 @@ path = "src/main.rs"
 axum = { version = "0.8.8", features = ["macros"] }
 axum-extra = { version = "0.12.5", features = ["typed-routing"] }
 tonic = "0.14.5"
-tonic-build = "0.14.5"
+tonic-prost = "0.14.5"
+prost = "*"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
 tokio-macros = "2.5.0"
 uuid = { version = "1.22.0", features = ["serde", "v4", "v7"] }
@@ -27,8 +29,16 @@ into-response = "0.3.1"
 sqlx.workspace = true
 async-trait = "0.1.89"
 thiserror = "2"
-utoipa = { version = "5.4.0", features = ["uuid", "axum_extras", "openapi_extensions"] }
+utoipa = { version = "5.4.0", features = [
+    "uuid",
+    "axum_extras",
+    "openapi_extensions",
+] }
 utoipa-axum = "0.2.0"
+
+[build-dependencies]
+tonic-build = "0.14.5"
+tonic-prost-build = "*"
 
 [dev-dependencies]
 mockall = "0.13"

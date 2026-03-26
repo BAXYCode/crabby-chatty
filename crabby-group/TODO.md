@@ -11,3 +11,12 @@
 
     This architecture will be cleaner and more up to par with the standards
     expected in  production environments
+
+# API spec generation
+
+## Planned
+
+    I need to find a more ergonomic way to change the necessary information in
+    the api spec generation. I would like to build some reusable module that
+    would allow all my microservices to generate the appropriate spec with the
+    correct information from a config file
