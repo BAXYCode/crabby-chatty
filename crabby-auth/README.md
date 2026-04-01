@@ -1,17 +1,29 @@
+# crabby-auth
 
-# Running tests
+gRPC authentication service handling user registration, login, and token management.
 
-To test this crate, you can use 
+## API (`auth.proto`)
 
-`just run`
+| RPC | Description |
+|---|---|
+| `Register` | Create a new user (password hashed with Argon2) |
+| `Login` | Validate credentials, return bearer + refresh PASETO tokens |
+| `Refresh` | Issue a new bearer token using a valid refresh token |
+| `PublicKey` | Return the asymmetric public key so other services can verify tokens locally |
 
-followed by 
+Served via Tonic on port `6769`.
 
-`just test-all`
+## Internals
 
-If you do not have `just` installed, you can simply follow [this](https://github.com/casey/just) link to download it or 
-open the Justfile and run the commands directly.
+- **PASETO v4 tokens** — Asymmetric (public/secret key pair). Keys are stored in Postgres via `PasetoKeyRepo`.
+- **Argon2 password hashing** — A single static `Argon2` instance is reused across requests.
+- **User storage** — `UserRepo` trait backed by `PostgresUserRepo` (sqlx).
+- **gRPC interceptor** — Extracts bearer tokens from the `Authorization` header for the `Refresh` flow.
 
-After the tests are done running, you should use `just clean` to reset the environment.
+## Running tests
 
-THE TESTS IN THIS REPO WERE MADE WITH THE HELP OF AI
+To test this crate, you can use `just run` followed by `just test-all`.
+
+If you do not have `just` installed, you can follow [this](https://github.com/casey/just) link to download it or open the Justfile and run the commands directly.
+
+After the tests are done running, use `just clean` to reset the environment.
