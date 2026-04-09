@@ -4,8 +4,8 @@ use uuid::Uuid;
 
 use crate::ws::common::Destination;
 
-//Any other type of websocket message that I will be sending back to the client will be defined
-//inside of this enum
+//Any other type of websocket message that I will be sending back to
+// the client will be defined inside of this enum
 #[derive(
     Debug, Clone, JsonSchema, ToAsyncApiMessage, Serialize, Deserialize,
 )]

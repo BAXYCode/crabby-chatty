@@ -6,6 +6,7 @@ members = [
     "crabby-auth",
     "crabby-specs",
     "crabby-group",
+    "crabby-transport",
 ]
 
 resolver = "2"
