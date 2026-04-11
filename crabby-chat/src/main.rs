@@ -1,29 +1,11 @@
-#![allow(dead_code)]
-mod actors;
-mod client;
-mod error;
-mod handle;
-pub mod id;
-pub mod messages;
+use std::{net::SocketAddr, sync::Arc};
+
 use axum::{
     extract::{ConnectInfo, FromRef, State, WebSocketUpgrade, ws::WebSocket},
     response::IntoResponse,
     routing::get,
 };
-use crabby_core::shutdown::shutdown_signal;
-use ferroid::{generator::AtomicSnowflakeGenerator, time::MonotonicClock};
-use futures::StreamExt;
-use hashbrown::HashMap;
-use kameo::actor::{ActorRef, Spawn};
-use std::net::SocketAddr;
-use tokio::net::TcpListener;
-use tracing::{info, instrument};
-
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-use uuid::{NoContext, Timestamp, Uuid};
-
-use crate::{
+use crabby_chat::{
     actors::{
         engine::EngineActor,
         incoming::{IncomingMessageActor, IncomingWebsocketActor},
@@ -31,21 +13,41 @@ use crate::{
     },
     id::IdGenerator,
 };
+use crabby_core::shutdown::shutdown_signal;
+use crabby_specs::nats::{
+    channel::FanoutMessageDelivery, delivery::user_delivery_stream, transport,
+};
+use crabby_transport::transport::Transport;
+use eyre::{Ok, Result};
+use ferroid::{generator::AtomicSnowflakeGenerator, time::MonotonicClock};
+use futures::StreamExt;
+use hashbrown::HashMap;
+use kameo::actor::{ActorRef, Spawn};
+use tokio::net::TcpListener;
+use tracing::{info, instrument};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::{NoContext, Timestamp, Uuid};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     test().await;
+    Ok(())
 }
 
 #[instrument]
-async fn test() {
+async fn test() -> Result<()> {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::filter::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                // axum logs rejections from built-in extractors with the `axum::rejection`
-                // target, at `TRACE` level. `axum::rejection=trace` enables showing those events
-                "example_tracing_aka_logging=debug,tower_http=debug,axum::rejection=trace".into()
-            }),
+            tracing_subscriber::filter::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| {
+                    // axum logs rejections from built-in extractors with the
+                    // `axum::rejection` target, at `TRACE`
+                    // level. `axum::rejection=trace` enables showing those
+                    // events
+                    "example_tracing_aka_logging=debug,tower_http=debug,\
+                     axum::rejection=trace"
+                        .into()
+                }),
         )
         .with(tracing_subscriber::fmt::layer().pretty())
         .init();
@@ -53,9 +55,21 @@ async fn test() {
         0,
         MonotonicClock::default(),
     ));
-    let engine = EngineActor::new(HashMap::default(), id_gen);
+
+    let transport = transport::NatsCoreTransport::new().await?;
+    let fanout_publisher =
+        Arc::new(transport.publisher(&FanoutMessageDelivery)?);
+
+    // Subscribe to per-user delivery subjects from NATS
+    let delivery_stream =
+        user_delivery_stream(transport.client().clone()).await?;
+
+    //Engine is the workhorse of the application in terms of relaying
+    // messages to uses and coordinating connections
+    let engine = EngineActor::new(HashMap::default(), id_gen, fanout_publisher);
     //spawn Engine
     let engine_ref = EngineActor::spawn(engine);
+    engine_ref.attach_stream(Box::pin(delivery_stream), (), ());
     let state = SharedState {
         channel: ChannelState { inner: engine_ref },
     };
@@ -70,6 +84,8 @@ async fn test() {
     .with_graceful_shutdown(shutdown_signal())
     .await
     .unwrap();
+
+    Ok(())
 }
 async fn websocket(
     ws: WebSocketUpgrade,

@@ -18,3 +18,4 @@ async-nats = "0.47.0"
 futures-util = "0.3.32"
 bytes = { version = "1.11.1", features = ["serde"] }
 thiserror = "2.0.18"
+dotenvy = "0.15.7"

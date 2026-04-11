@@ -15,7 +15,7 @@ impl Channel for UserMessageDelivery {
     }
 
     fn subject(&self) -> String {
-        format!("users.delivery.{}", self.user_id)
+        format!("user.{}.delivery", self.user_id)
     }
 }
 
@@ -24,6 +24,21 @@ impl UserMessageDelivery {
         UserMessageDelivery {
             user_id: user_id.as_ref().to_owned(),
         }
+    }
+}
+pub struct FanoutMessageDelivery;
+
+impl Channel for FanoutMessageDelivery {
+    type Message = CrabbyWsFromServer;
+
+    type Codec = JsonCodec;
+
+    fn channel_name() -> &'static str {
+        "crabby-fanout-delivery"
+    }
+
+    fn subject(&self) -> String {
+        "messages.delivery.fanout".to_owned()
     }
 }
 
@@ -42,7 +57,7 @@ mod tests {
     #[test]
     fn subject_contains_user_id() {
         let delivery = UserMessageDelivery::new(&"user-123");
-        assert_eq!(delivery.subject(), "users.delivery.user-123");
+        assert_eq!(delivery.subject(), "user.user-123.delivery");
     }
 
     #[test]
@@ -65,7 +80,9 @@ mod tests {
         let msg = CrabbyWsFromServer::ChatMessage {
             message_id: 42,
             user_id: Uuid::nil(),
-            dest: crate::ws::common::Destination::Individual { id: Uuid::nil() },
+            dest: crate::ws::common::Destination::Individual {
+                id: Uuid::nil(),
+            },
             timestamp: "2026-01-01T00:00:00Z".to_string(),
             contents: "hello".to_string(),
         };

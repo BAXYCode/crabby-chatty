@@ -1,6 +1,6 @@
 use async_nats::Client;
 use crabby_transport::{channel::Channel, transport::Transport};
-use eyre::Ok;
+use eyre::{Ok, Result};
 
 use crate::nats::{
     publisher::NatsCorePublisher, subscriber::NatsCoreSubscriber,
@@ -27,5 +27,18 @@ where
 
     fn publisher(&self, channel: &C) -> eyre::Result<Self::Publisher> {
         Ok(NatsCorePublisher::new(self.inner.clone(), channel))
+    }
+}
+
+impl NatsCoreTransport {
+    pub async fn new() -> Result<Self> {
+        let nats_url = dotenvy::var("NATS_CORE_URL")?;
+        Ok(NatsCoreTransport {
+            inner: async_nats::connect(nats_url).await?,
+        })
+    }
+
+    pub fn client(&self) -> &async_nats::Client {
+        &self.inner
     }
 }

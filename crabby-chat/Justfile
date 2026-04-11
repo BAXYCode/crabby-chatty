@@ -1,0 +1,24 @@
+default:
+    @just --list
+
+# Run unit + engine integration tests (no external deps)
+test:
+    cargo test -p crabby-chat
+
+# Start the NATS server for integration tests
+nats-up:
+    docker compose -f ../docker/docker-compose.test.yml up -d
+
+# Stop the NATS server
+nats-down:
+    docker compose -f ../docker/docker-compose.test.yml down
+
+# Run only the NATS integration tests (requires `just nats-up` first)
+test-nats:
+    cargo test -p crabby-chat --test nats_integration -- --ignored
+
+# Run all tests: spin up NATS, run everything, tear down
+test-all: nats-up
+    cargo test -p crabby-chat
+    cargo test -p crabby-chat --test nats_integration -- --ignored
+    @just nats-down

@@ -10,6 +10,7 @@ path = "./src/client.rs"
 [dependencies]
 crabby-core = { path = "../crabby-core" }
 crabby-specs = { path = "../crabby-specs" }
+crabby-transport = { path = "../crabby-transport" }
 uuid = { version = "1.22.0", features = ["v7", "serde", "macro-diagnostics"] }
 axum = { version = "0.8.8", features = ["ws"] }
 serde = { workspace = true }
@@ -36,3 +37,8 @@ ferroid = { version = "1.0.2", features = [
     "snowflake",
 ] }
 jiff = "0.2.23"
+
+[dev-dependencies]
+async-nats = "0.47.0"
+bytes = "1.11.1"
+futures-util = "0.3.32"
