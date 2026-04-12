@@ -2,6 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     extract::{ConnectInfo, FromRef, State, WebSocketUpgrade, ws::WebSocket},
+    http::HeaderMap,
     response::IntoResponse,
     routing::get,
 };
@@ -91,20 +92,24 @@ async fn websocket(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<ChannelState>,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
+    let auth_user_id = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok());
     info!("received connection from {addr}");
-    ws.on_upgrade(move |socket| websocket_handler(socket, addr, state))
+    ws.on_upgrade(move |socket| websocket_handler(socket, addr, state, auth_user_id))
 }
 
-// TODO: add token extractor for extracting user UUID
 async fn websocket_handler(
     ws: WebSocket,
     _addr: SocketAddr,
     state: ChannelState,
+    auth_user_id: Option<Uuid>,
 ) {
     let (sink, stream) = ws.split();
-    //Later we extract will user id using some kind of interceptor
-    let id = crate::id();
+    let id = auth_user_id.unwrap_or_else(|| crate::id());
     let outbox = OutgoingWebsocketActor::new(sink, state.inner.clone(), id);
     OutgoingWebsocketActor::spawn(outbox);
     let inbox: IncomingWebsocketActor =
