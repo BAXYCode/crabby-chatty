@@ -1,0 +1,17 @@
+[package]
+name = "crabby-fanout"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-trait = "0.1"
+crabby-specs = { path = "../crabby-specs" }
+crabby-transport = { path = "../crabby-transport" }
+eyre.workspace = true
+kameo = "0.20.0"
+tokio = { version = "1.51.1", features = ["rt-multi-thread", "tokio-macros", "signal"] }
+tonic = "0.14.5"
+uuid = { version = "1.23.0", features = ["v7"] }
+
+[dev-dependencies]
+futures-util = "0.3"

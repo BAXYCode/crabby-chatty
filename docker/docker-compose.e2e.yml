@@ -1,0 +1,91 @@
+services:
+  traefik:
+    image: traefik:v3.6
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "9099:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      chat:
+        condition: service_started
+      group:
+        condition: service_started
+    networks:
+      - e2e
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: groups
+    volumes:
+      - ./e2e-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d groups"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      - e2e
+
+  nats:
+    image: nats:2.11-alpine
+    ports:
+      - "4222:4222"
+    networks:
+      - e2e
+
+  group:
+    build:
+      context: ..
+      dockerfile: docker/group.Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres/groups
+      HTTP_ADDR: 0.0.0.0:8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.group.rule=PathPrefix(`/group`)"
+      - "traefik.http.routers.group.entrypoints=web"
+      - "traefik.http.services.group.loadbalancer.server.port=8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - e2e
+
+  chat:
+    build:
+      context: ..
+      dockerfile: docker/chat.Dockerfile
+    environment:
+      NATS_CORE_URL: nats:4222
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=PathPrefix(`/ws`)"
+      - "traefik.http.routers.chat.entrypoints=web"
+      - "traefik.http.services.chat.loadbalancer.server.port=6969"
+    depends_on:
+      - nats
+    networks:
+      - e2e
+
+  fanout:
+    build:
+      context: ..
+      dockerfile: docker/fanout.Dockerfile
+    environment:
+      NATS_CORE_URL: nats:4222
+      GROUP_SERVICE_ENDPOINT: http://group:8080
+    depends_on:
+      - nats
+      - group
+    networks:
+      - e2e
+
+networks:
+  e2e:

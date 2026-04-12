@@ -1,0 +1,24 @@
+default:
+    @just --list
+
+# Run unit tests (no external deps)
+test:
+    cargo test -p crabby-fanout
+
+# Start the NATS server for integration tests
+nats-up:
+    docker compose -f ../docker/docker-compose.test.yml up -d
+
+# Stop the NATS server
+nats-down:
+    docker compose -f ../docker/docker-compose.test.yml down
+
+# Run only the NATS integration tests (requires `just nats-up` first)
+test-nats:
+    cargo test -p crabby-fanout --test fanout_nats_integration -- --ignored
+
+# Run all tests: spin up NATS, run everything, tear down
+test-all: nats-up
+    cargo test -p crabby-fanout
+    cargo test -p crabby-fanout --test fanout_nats_integration -- --ignored
+    @just nats-down

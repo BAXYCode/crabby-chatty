@@ -9,7 +9,10 @@ use crabby_transport::{
 use eyre::Result;
 use futures_util::{Stream, StreamExt};
 
-use crate::nats::{channel::UserMessageDelivery, error::NatsAdapterError};
+use crate::nats::{
+    channel::{FanoutMessageDelivery, GroupChangeEvent, UserMessageDelivery},
+    error::NatsAdapterError,
+};
 
 pub struct NatsCoreSubscriber {
     inner: async_nats::Client,
@@ -29,6 +32,44 @@ impl Subscriber<UserMessageDelivery> for NatsCoreSubscriber {
         let subject = topic.subject();
         let sub = self.inner.subscribe(subject).await?;
         let stream = into_payload_byte_stream(sub, topic);
+        Ok(ChannelStream::new(Box::pin(stream)))
+    }
+}
+
+pub type FanoutStream = ChannelStream<
+    FanoutMessageDelivery,
+    Pin<Box<dyn Stream<Item = Result<Bytes>> + Send>>,
+>;
+#[async_trait]
+impl Subscriber<FanoutMessageDelivery> for NatsCoreSubscriber {
+    type Stream = FanoutStream;
+    type Message = <FanoutMessageDelivery as Channel>::Message;
+    async fn subscribe(
+        &self,
+        topic: impl Channel + Send + 'static,
+    ) -> Result<Self::Stream> {
+        let subject = topic.subject();
+        let sub = self.inner.subscribe(subject).await?;
+        let stream = sub.map(|msg| Ok(msg.payload));
+        Ok(ChannelStream::new(Box::pin(stream)))
+    }
+}
+
+pub type GroupEventStream = ChannelStream<
+    GroupChangeEvent,
+    Pin<Box<dyn Stream<Item = Result<Bytes>> + Send>>,
+>;
+#[async_trait]
+impl Subscriber<GroupChangeEvent> for NatsCoreSubscriber {
+    type Stream = GroupEventStream;
+    type Message = <GroupChangeEvent as Channel>::Message;
+    async fn subscribe(
+        &self,
+        topic: impl Channel + Send + 'static,
+    ) -> Result<Self::Stream> {
+        let subject = topic.subject();
+        let sub = self.inner.subscribe(subject).await?;
+        let stream = sub.map(|msg| Ok(msg.payload));
         Ok(ChannelStream::new(Box::pin(stream)))
     }
 }

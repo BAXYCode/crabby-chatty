@@ -1,6 +1,7 @@
 use asyncapi_rust::AsyncApi;
 
 use crate::ws::{incoming::CrabbyWsFromClient, outgoing::CrabbyWsFromServer};
+pub mod grpc;
 // #[cfg(feature = "nats")]
 pub mod nats;
 pub mod ws;

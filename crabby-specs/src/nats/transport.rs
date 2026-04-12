@@ -9,6 +9,7 @@ use crate::nats::{
 // URL in the env
 // TODO: Take in channel as argument to subscriber and publisher
 // methods
+#[derive(Clone)]
 pub struct NatsCoreTransport {
     inner: Client,
 }
@@ -32,7 +33,8 @@ where
 
 impl NatsCoreTransport {
     pub async fn new() -> Result<Self> {
-        let nats_url = dotenvy::var("NATS_CORE_URL")?;
+        let nats_url = std::env::var("NATS_CORE_URL")
+            .unwrap_or("localhost:4222".to_string());
         Ok(NatsCoreTransport {
             inner: async_nats::connect(nats_url).await?,
         })

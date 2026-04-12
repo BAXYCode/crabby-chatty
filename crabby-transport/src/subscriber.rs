@@ -64,14 +64,10 @@ where
         match Pin::new(&mut channel_stream.stream).poll_next(cx) {
             std::task::Poll::Ready(Some(Ok(encoded))) => {
                 let decoded = C::Codec::decode(encoded.as_ref());
-                if let Ok(msg) = decoded {
-                    Poll::Ready(Some(Ok(msg)))
-                } else {
-                    Poll::Ready(None)
-                }
+                Poll::Ready(Some(decoded))
             }
-            std::task::Poll::Ready(None) => todo!(),
-            std::task::Poll::Pending => todo!(),
+            std::task::Poll::Ready(None) => Poll::Ready(None),
+            std::task::Poll::Pending => Poll::Pending,
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
         }
     }

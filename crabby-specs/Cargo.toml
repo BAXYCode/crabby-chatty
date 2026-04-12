@@ -19,3 +19,10 @@ futures-util = "0.3.32"
 bytes = { version = "1.11.1", features = ["serde"] }
 thiserror = "2.0.18"
 dotenvy = "0.15.7"
+tonic = "0.14.5"
+tonic-prost = "0.14.5"
+prost = "*"
+
+[build-dependencies]
+tonic-build = "0.14.5"
+tonic-prost-build = "*"

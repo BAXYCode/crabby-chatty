@@ -1,4 +1,9 @@
-use crabby_transport::{channel::Channel, codec::JsonCodec};
+use crabby_transport::{
+    channel::Channel,
+    codec::{JsonCodec, MsgpackCodec},
+};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::ws::outgoing::CrabbyWsFromServer;
 
@@ -39,6 +44,24 @@ impl Channel for FanoutMessageDelivery {
 
     fn subject(&self) -> String {
         "messages.delivery.fanout".to_owned()
+    }
+}
+//Temp location of this type
+#[derive(Serialize, Deserialize)]
+pub struct GroupChangeId(pub Uuid);
+pub struct GroupChangeEvent;
+
+impl Channel for GroupChangeEvent {
+    type Message = GroupChangeId;
+
+    type Codec = MsgpackCodec;
+
+    fn channel_name() -> &'static str {
+        "group-membership-change"
+    }
+
+    fn subject(&self) -> String {
+        "groups.events".to_string()
     }
 }
 

@@ -1,4 +1,4 @@
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY target/release/crabby-chat /usr/local/bin/
-CMD ["crabby-chat"]
+COPY target/release/crabby-fanout /usr/local/bin/
+CMD ["crabby-fanout"]

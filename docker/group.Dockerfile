@@ -1,8 +1,4 @@
-FROM ubuntu:jammy
-
-RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /service
-COPY target/release/crabby-group /service/crabby-group
-
-CMD ["./crabby-group"]
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY target/release/crabby-group /usr/local/bin/
+CMD ["crabby-group"]
